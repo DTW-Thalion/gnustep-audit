@@ -1,96 +1,62 @@
-# GNUmakefile - Build all GNUstep audit benchmarks as standalone tools
-#
-# Usage:
-#   make                 # build all benchmarks
-#   make bench_msg_send  # build a single benchmark
-#   make clean           # remove build artifacts
-#   make run             # build and run all benchmarks
-#   make run-json        # build and run all benchmarks with --json output
-#
-# Requires: GNUstep environment (. /usr/share/GNUstep/Makefiles/GNUstep.sh)
-# or MSYS2 with GNUstep packages installed.
+# GNUmakefile - GNUstep audit benchmarks
+# Uses the GNUstep Make system for proper ObjC compilation
 
-CC ?= gcc
-OBJC ?= $(CC)
-OBJCFLAGS ?= -O2 -Wall -Wextra
-
-# GNUstep flags (try gnustep-config first, fall back to pkg-config)
-GNUSTEP_FLAGS := $(shell gnustep-config --objc-flags 2>/dev/null || \
-                         pkg-config --cflags gnustep-base 2>/dev/null)
-GNUSTEP_LIBS  := $(shell gnustep-config --base-libs 2>/dev/null || \
-                         pkg-config --libs gnustep-base 2>/dev/null)
-
-# If gnustep-config is not available, use sensible defaults
-ifeq ($(strip $(GNUSTEP_LIBS)),)
-  GNUSTEP_FLAGS = -fconstant-string-class=NSConstantString -fobjc-exceptions
-  GNUSTEP_LIBS  = -lgnustep-base -lobjc -lpthread
+ifeq ($(GNUSTEP_MAKEFILES),)
+  GNUSTEP_MAKEFILES := $(shell gnustep-config --variable=GNUSTEP_MAKEFILES 2>/dev/null)
+endif
+ifeq ($(GNUSTEP_MAKEFILES),)
+  $(error GNUSTEP_MAKEFILES not set. Source GNUstep.sh first)
 endif
 
-# AppKit-dependent benchmarks need gui libs
-GNUSTEP_GUI_LIBS := $(shell gnustep-config --gui-libs 2>/dev/null || \
-                            pkg-config --libs gnustep-gui 2>/dev/null)
-ifeq ($(strip $(GNUSTEP_GUI_LIBS)),)
-  GNUSTEP_GUI_LIBS = -lgnustep-gui -lgnustep-base -lobjc -lpthread
-endif
+include $(GNUSTEP_MAKEFILES)/common.make
 
-HARNESS_DIR = ../common
-HARNESS_SRC = $(HARNESS_DIR)/bench_harness.c
-HARNESS_HDR = $(HARNESS_DIR)/bench_harness.h
+# Base-only benchmarks
+TOOL_NAME = bench_msg_send bench_retain_release bench_weak_ref \
+            bench_autorelease bench_string_hash bench_dict_lookup \
+            bench_json_parse bench_runloop_timers bench_nscache \
+            bench_cfarray_append
 
-CPPFLAGS += -I$(HARNESS_DIR)
-LDFLAGS  += -lpthread
+HARNESS = ../common/bench_harness.c
 
-# Base-only benchmarks (no AppKit dependency)
-BASE_BENCHMARKS = \
-	bench_msg_send \
-	bench_retain_release \
-	bench_weak_ref \
-	bench_autorelease \
-	bench_string_hash \
-	bench_dict_lookup \
-	bench_json_parse \
-	bench_runloop_timers \
-	bench_nscache \
-	bench_cfarray_append
+bench_msg_send_OBJC_FILES = bench_msg_send.m
+bench_msg_send_C_FILES = $(HARNESS)
+bench_retain_release_OBJC_FILES = bench_retain_release.m
+bench_retain_release_C_FILES = $(HARNESS)
+bench_weak_ref_OBJC_FILES = bench_weak_ref.m
+bench_weak_ref_C_FILES = $(HARNESS)
+bench_weak_ref_OBJCFLAGS = -fobjc-arc
+bench_autorelease_OBJC_FILES = bench_autorelease.m
+bench_autorelease_C_FILES = $(HARNESS)
+bench_string_hash_OBJC_FILES = bench_string_hash.m
+bench_string_hash_C_FILES = $(HARNESS)
+bench_dict_lookup_OBJC_FILES = bench_dict_lookup.m
+bench_dict_lookup_C_FILES = $(HARNESS)
+bench_json_parse_OBJC_FILES = bench_json_parse.m
+bench_json_parse_C_FILES = $(HARNESS)
+bench_runloop_timers_OBJC_FILES = bench_runloop_timers.m
+bench_runloop_timers_C_FILES = $(HARNESS)
+bench_nscache_OBJC_FILES = bench_nscache.m
+bench_nscache_C_FILES = $(HARNESS)
+bench_cfarray_append_OBJC_FILES = bench_cfarray_append.m
+bench_cfarray_append_C_FILES = $(HARNESS)
 
-# AppKit benchmarks (require GUI framework)
-GUI_BENCHMARKS = \
-	bench_view_invalidation \
-	bench_image_draw \
-	bench_scroll
+ADDITIONAL_CPPFLAGS += -I../common
+ADDITIONAL_OBJCFLAGS += -O2
+ADDITIONAL_LDFLAGS += -lpthread
 
-ALL_BENCHMARKS = $(BASE_BENCHMARKS) $(GUI_BENCHMARKS)
+include $(GNUSTEP_MAKEFILES)/tool.make
 
-.PHONY: all clean run run-json base gui
-
-all: base gui
-
-base: $(BASE_BENCHMARKS)
-
-gui: $(GUI_BENCHMARKS)
-
-# Pattern rule for base benchmarks
-$(BASE_BENCHMARKS): %: %.m $(HARNESS_SRC) $(HARNESS_HDR)
-	$(OBJC) $(OBJCFLAGS) $(CPPFLAGS) $(GNUSTEP_FLAGS) -o $@ $< $(HARNESS_SRC) $(GNUSTEP_LIBS) $(LDFLAGS)
-
-# Pattern rule for GUI benchmarks
-$(GUI_BENCHMARKS): %: %.m $(HARNESS_SRC) $(HARNESS_HDR)
-	$(OBJC) $(OBJCFLAGS) $(CPPFLAGS) $(GNUSTEP_FLAGS) -o $@ $< $(HARNESS_SRC) $(GNUSTEP_GUI_LIBS) $(LDFLAGS)
-
-clean:
-	rm -f $(ALL_BENCHMARKS) $(addsuffix .exe,$(ALL_BENCHMARKS))
+# Convenience targets
+.PHONY: run run-json
 
 run: all
-	@for b in $(ALL_BENCHMARKS); do \
-		echo "=== $$b ==="; \
-		./$$b; \
+	@for t in $(TOOL_NAME); do \
+		echo "=== $$t ==="; \
+		./obj/$$t 2>&1; \
 		echo; \
 	done
 
 run-json: all
-	@echo "["
-	@first=1; for b in $(ALL_BENCHMARKS); do \
-		if [ "$$first" = "1" ]; then first=0; else echo ","; fi; \
-		./$$b --json; \
+	@for t in $(TOOL_NAME); do \
+		./obj/$$t --json 2>&1; \
 	done
-	@echo "]"

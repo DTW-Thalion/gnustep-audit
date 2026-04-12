@@ -12,6 +12,7 @@
  * Expected BEFORE fix: Crash (double-free, segfault in pool drain).
  */
 
+#import <Foundation/Foundation.h>
 #import <objc/objc-arc.h>
 #import <objc/runtime.h>
 #include <stdio.h>
@@ -19,21 +20,11 @@
 
 #define POOL_ITERATIONS 1000
 
-/* Minimal root class with basic retain/release */
-@interface ARCTestRoot {
-    Class isa;
-}
-+ (id)alloc;
-- (id)init;
+/* Use NSObject as root class for proper ARC support */
+@interface ARCTestRoot : NSObject
 @end
 
 @implementation ARCTestRoot
-+ (id)alloc {
-    return class_createInstance(self, 0);
-}
-- (id)init {
-    return self;
-}
 @end
 
 static void *pool_stress(void *arg) {

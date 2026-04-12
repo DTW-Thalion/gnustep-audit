@@ -36,7 +36,7 @@ static void *bg_event_fetcher(void *arg)
          *            or similar assertion.
          * Before fix: silently races on the event queue.
          */
-        [app nextEventMatchingMask:NSEventMaskAny
+        [app nextEventMatchingMask:NSAnyEventMask
                          untilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]
                             inMode:NSDefaultRunLoopMode
                            dequeue:YES];

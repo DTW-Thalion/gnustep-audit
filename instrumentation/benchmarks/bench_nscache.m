@@ -115,24 +115,29 @@ int main(int argc, char *argv[]) {
             }
 
             /* Benchmark 6: Large cache set causing eviction */
-            if (json) {
-                BENCH_JSON("nscache_set_large_evict", ITERS_LARGE, {
+            /* Note: cannot use BENCH macro directly here because commas
+               in ObjC message sends confuse the C preprocessor. */
+            {
+                /* warmup */
+                for (long _w = 0; _w < ITERS_LARGE / 10; _w++) {
                     @autoreleasepool {
-                        NSString *k = [NSString stringWithFormat:@"new_%d",
-                                       _bench_i];
-                        [cache setObject:[NSNumber numberWithInt:_bench_i]
-                                  forKey:k];
+                        [cache setObject:@(_w) forKey:@(_w)];
                     }
-                });
-            } else {
-                BENCH("nscache_set_large_evict", ITERS_LARGE, {
+                }
+                double _start = bench_time_ns();
+                for (long _i = 0; _i < ITERS_LARGE; _i++) {
                     @autoreleasepool {
-                        NSString *k = [NSString stringWithFormat:@"new_%d",
-                                       _bench_i];
-                        [cache setObject:[NSNumber numberWithInt:_bench_i]
-                                  forKey:k];
+                        [cache setObject:@(_i) forKey:@(_i)];
                     }
-                });
+                }
+                double _elapsed = bench_time_ns() - _start;
+                double _ns = _elapsed / (double)ITERS_LARGE;
+                double _ops = (double)ITERS_LARGE / (_elapsed / 1e9);
+                if (json) {
+                    printf("{\"name\":\"nscache_set_large_evict\",\"ops_per_sec\":%.1f,\"ns_per_op\":%.1f,\"iterations\":%d}\n", _ops, _ns, ITERS_LARGE);
+                } else {
+                    printf("BENCH %-40s %10d ops  %10.1f ns/op  %12.0f ops/sec\n", "nscache_set_large_evict", ITERS_LARGE, _ns, _ops);
+                }
             }
 
             [cache release];

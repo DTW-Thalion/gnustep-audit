@@ -12,6 +12,7 @@
  * Expected BEFORE fix: Crash, corruption, or dangling pointers.
  */
 
+#import <Foundation/Foundation.h>
 #import <objc/objc-arc.h>
 #import <objc/runtime.h>
 #include <stdio.h>
@@ -21,21 +22,11 @@
 #define NUM_THREADS 8
 #define OPS_PER_THREAD 10000
 
-/* Minimal root class */
-@interface WeakStressRoot {
-    Class isa;
-}
-+ (id)alloc;
-- (id)init;
+/* Use NSObject as root class for proper ARC/weak reference support */
+@interface WeakStressRoot : NSObject
 @end
 
 @implementation WeakStressRoot
-+ (id)alloc {
-    return class_createInstance(self, 0);
-}
-- (id)init {
-    return self;
-}
 @end
 
 /* Shared target object and weak slots */

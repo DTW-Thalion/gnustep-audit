@@ -91,8 +91,7 @@ int main(int argc, char *argv[]) {
                            weak_load_worker, NULL);
         }
 
-        [g_shared_object release];
-        g_shared_object = nil;
+        g_shared_object = nil; /* ARC handles release */
     }
 
     return 0;

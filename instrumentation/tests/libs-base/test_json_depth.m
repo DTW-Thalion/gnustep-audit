@@ -13,13 +13,13 @@
 
 #define NESTING_DEPTH 10000
 
-static sigjmp_buf jumpBuf;
+static jmp_buf jumpBuf;
 static volatile sig_atomic_t gotSignal = 0;
 
 static void segfaultHandler(int sig) {
     (void)sig;
     gotSignal = 1;
-    siglongjmp(jumpBuf, 1);
+    longjmp(jumpBuf, 1);
 }
 
 int main(void) {
@@ -46,22 +46,18 @@ int main(void) {
                NESTING_DEPTH, (unsigned long)[jsonData length]);
 
         /*
-         * Install signal handler to catch stack overflow (SIGSEGV/SIGBUS).
+         * Install signal handler to catch stack overflow (SIGSEGV).
          * If the parser has no depth limit, it will recurse until stack
          * overflow, causing a crash.
+         * Note: Uses signal() for portability on Windows/MSYS2.
          */
-        struct sigaction sa, oldSa, oldBus;
-        memset(&sa, 0, sizeof(sa));
-        sa.sa_handler = segfaultHandler;
-        sa.sa_flags = 0;
-        sigaction(SIGSEGV, &sa, &oldSa);
-        sigaction(SIGBUS, &sa, &oldBus);
+        void (*oldSegv)(int) = signal(SIGSEGV, segfaultHandler);
 
         NSError *error = nil;
         id result = nil;
         BOOL crashed = NO;
 
-        if (sigsetjmp(jumpBuf, 1) == 0) {
+        if (setjmp(jumpBuf) == 0) {
             result = [NSJSONSerialization JSONObjectWithData:jsonData
                                                     options:0
                                                       error:&error];
@@ -70,8 +66,7 @@ int main(void) {
         }
 
         /* Restore signal handlers */
-        sigaction(SIGSEGV, &oldSa, NULL);
-        sigaction(SIGBUS, &oldBus, NULL);
+        signal(SIGSEGV, oldSegv);
 
         if (crashed) {
             printf("  DETECTED: Stack overflow during JSON parsing!\n");

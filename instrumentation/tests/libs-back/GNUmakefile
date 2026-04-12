@@ -3,15 +3,14 @@
 #
 # Usage with GNUstep Make:
 #   make
-#   make check
+#   make run-tests
 #
 # Fallback without GNUstep Make (plain clang):
 #   make -f GNUmakefile fallback
 #   make -f GNUmakefile check-fallback
 #
-# Note: Many tests require the headless backend. Set defaults before running:
-#   defaults write NSGlobalDomain GSBackend HeadlessServer
-# or set environment: GSBackend=HeadlessServer
+# Note: These tests use the Win32 backend (default on Windows).
+# For headless testing, set: GSBackend=HeadlessServer
 #
 
 TESTS = \
@@ -62,9 +61,10 @@ fallback:
 		$(CC) $(OBJCFLAGS) -o $$t $$t.m $(LDFLAGS) || echo "  WARN: $$t failed to compile"; \
 	done
 
-# ---------- check targets ----------
+# ---------- run-tests target ----------
+# Note: 'check' conflicts with test-tool.make; use 'run-tests' instead
 
-check: all
+run-tests: all
 	@echo ""
 	@echo "=== Running libs-back regression tests ==="
 	@passed=0; failed=0; skipped=0; \
@@ -74,16 +74,18 @@ check: all
 			       ([ -x ./obj/$$t.exe ] && echo ./obj/$$t.exe || \
 			       ([ -x ./$$t ] && echo ./$$t || echo ./$$t.exe))); \
 			printf "  %-30s " "$$t"; \
-			if timeout 30 $$exe > /tmp/$$t.out 2>&1; then \
-				if grep -q "RESULT: PASS" /tmp/$$t.out; then \
-					echo "PASS"; passed=$$((passed+1)); \
-				elif grep -q "RESULT: FAIL" /tmp/$$t.out; then \
-					echo "FAIL (test assertions)"; failed=$$((failed+1)); \
-				else \
-					echo "PASS (no crash)"; passed=$$((passed+1)); \
-				fi; \
+			timeout 30 $$exe > /tmp/$$t.out 2>&1; \
+			rc=$$?; \
+			if [ $$rc -eq 124 ]; then \
+				echo "FAIL (timeout)"; failed=$$((failed+1)); \
+			elif grep -q "RESULT: PASS" /tmp/$$t.out; then \
+				echo "PASS"; passed=$$((passed+1)); \
+			elif grep -q "RESULT: FAIL" /tmp/$$t.out; then \
+				echo "FAIL (test assertions)"; failed=$$((failed+1)); \
+			elif [ $$rc -ne 0 ]; then \
+				echo "FAIL (crash, exit=$$rc)"; failed=$$((failed+1)); \
 			else \
-				echo "FAIL (crash/timeout)"; failed=$$((failed+1)); \
+				echo "PASS (no crash)"; passed=$$((passed+1)); \
 			fi; \
 		else \
 			printf "  %-30s SKIP (not built)\n" "$$t"; skipped=$$((skipped+1)); \
@@ -123,4 +125,4 @@ check-fallback: fallback
 clean-fallback:
 	rm -f $(TESTS) $(addsuffix .exe,$(TESTS))
 
-.PHONY: all fallback check check-fallback clean-fallback
+.PHONY: all fallback run-tests check-fallback clean-fallback

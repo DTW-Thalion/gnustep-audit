@@ -77,8 +77,9 @@ fallback:
 	done
 
 # ---------- check targets ----------
+# Note: 'check' conflicts with test-tool.make; use 'run-tests' instead
 
-check: all
+run-tests: all
 	@echo ""
 	@echo "=== Running libs-base regression tests ==="
 	@passed=0; failed=0; skipped=0; \

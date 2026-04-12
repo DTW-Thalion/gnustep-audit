@@ -90,12 +90,15 @@ int main(void) {
         id result = nil;
 
         @try {
+            /*
+             * GNUstep provides -initForReadingWithData: (no error param).
+             * Use @"root" as the key, which is the standard top-level key
+             * in NSKeyedArchiver plists (equivalent to NSKeyedArchiveRootObjectKey).
+             */
             NSKeyedUnarchiver *unarchiver =
-                [[NSKeyedUnarchiver alloc] initForReadingFromData:binaryPlist
-                                                           error:&unarchiveError];
+                [[NSKeyedUnarchiver alloc] initForReadingWithData:binaryPlist];
             if (unarchiver) {
-                unarchiver.requiresSecureCoding = NO;
-                result = [unarchiver decodeObjectForKey:NSKeyedArchiveRootObjectKey];
+                result = [unarchiver decodeObjectForKey:@"root"];
                 [unarchiver finishDecoding];
             }
         } @catch (NSException *e) {

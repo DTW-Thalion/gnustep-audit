@@ -81,24 +81,17 @@ int main(void) {
         TEST_ASSERT(rc == 0, "Thread created to test zone after OOM");
 
         if (rc == 0) {
-            /* Use a timed join to detect deadlock */
-            struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += 5; /* 5 second timeout */
-
-            int joinResult = pthread_timedjoin_np(thread, NULL, &ts);
-            if (joinResult == 0) {
-                TEST_ASSERT(threadSuccess == 1,
-                            "Thread successfully allocated from zone after OOM");
-                if (threadSuccess) {
-                    printf("  Zone remains usable after failed allocation.\n");
-                }
-            } else {
-                printf("  DEADLOCK: Thread could not allocate from zone!\n");
-                printf("  Zone mutex likely not released after OOM.\n");
-                TEST_ASSERT(0, "Zone should be usable after OOM (possible deadlock)");
-                pthread_cancel(thread);
-                pthread_join(thread, NULL);
+            /*
+             * Join the thread. If the zone mutex is stuck, this will
+             * deadlock -- the outer test harness timeout will catch that.
+             * pthread_timedjoin_np is not portable (Linux glibc only),
+             * so we use a plain join here.
+             */
+            pthread_join(thread, NULL);
+            TEST_ASSERT(threadSuccess == 1,
+                        "Thread successfully allocated from zone after OOM");
+            if (threadSuccess) {
+                printf("  Zone remains usable after failed allocation.\n");
             }
         }
 

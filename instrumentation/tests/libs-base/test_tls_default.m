@@ -70,10 +70,12 @@ int main(void) {
         /*
          * Verify that creating an NSURLSession with default config
          * does not disable certificate validation.
+         * Note: NSURLSessionConfiguration may not be available in all
+         * GNUstep builds, so use dynamic lookup via NSClassFromString.
          */
-        if (urlSessionClass) {
-            NSURLSessionConfiguration *config =
-                [NSURLSessionConfiguration defaultSessionConfiguration];
+        Class urlSessionConfigClass = NSClassFromString(@"NSURLSessionConfiguration");
+        if (urlSessionConfigClass) {
+            id config = [urlSessionConfigClass performSelector:@selector(defaultSessionConfiguration)];
             TEST_ASSERT_NOT_NULL(config,
                                  "Default session configuration should exist");
 

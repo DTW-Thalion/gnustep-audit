@@ -11,26 +11,17 @@
  * Expected BEFORE fix: Crash (SIGSEGV).
  */
 
+#import <Foundation/Foundation.h>
 #import <objc/objc-arc.h>
 #import <objc/runtime.h>
 #include <stdio.h>
 #include "../../common/test_utils.h"
 
-/* Minimal root class */
-@interface StrongNullRoot {
-    Class isa;
-}
-+ (id)alloc;
-- (id)init;
+/* Use NSObject as root class for proper ARC support */
+@interface StrongNullRoot : NSObject
 @end
 
 @implementation StrongNullRoot
-+ (id)alloc {
-    return class_createInstance(self, 0);
-}
-- (id)init {
-    return self;
-}
 @end
 
 int main(void) {
