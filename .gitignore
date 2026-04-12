@@ -1,0 +1,17 @@
+# Build artifacts
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+obj/
+
+# Cloned GNUstep repos (tracked as submodules)
+# These have their own git repos with audit fix commits
+libobjc2/
+libs-base/
+libs-corebase/
+libs-opal/
+libs-quartzcore/
+libs-gui/
+libs-back/
