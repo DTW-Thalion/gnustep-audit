@@ -13,6 +13,7 @@ include $(GNUSTEP_MAKEFILES)/common.make
 # Base-only benchmarks
 TOOL_NAME = bench_msg_send bench_retain_release bench_weak_ref \
             bench_autorelease bench_string_hash bench_dict_lookup \
+            bench_dict_create \
             bench_json_parse bench_runloop_timers bench_nscache \
             bench_cfarray_append
 
@@ -31,6 +32,8 @@ bench_string_hash_OBJC_FILES = bench_string_hash.m
 bench_string_hash_C_FILES = $(HARNESS)
 bench_dict_lookup_OBJC_FILES = bench_dict_lookup.m
 bench_dict_lookup_C_FILES = $(HARNESS)
+bench_dict_create_OBJC_FILES = bench_dict_create.m
+bench_dict_create_C_FILES = $(HARNESS)
 bench_json_parse_OBJC_FILES = bench_json_parse.m
 bench_json_parse_C_FILES = $(HARNESS)
 bench_runloop_timers_OBJC_FILES = bench_runloop_timers.m

@@ -23,7 +23,8 @@ TESTS = \
 	test_json_numbers \
 	test_symlink_loop \
 	test_method_sig \
-	test_gs_tiny_string
+	test_gs_tiny_string \
+	test_gs_inline_dict
 
 # ---------- GNUstep Make path ----------
 
@@ -49,6 +50,7 @@ test_json_numbers_OBJC_FILES     = test_json_numbers.m
 test_symlink_loop_OBJC_FILES     = test_symlink_loop.m
 test_method_sig_OBJC_FILES       = test_method_sig.m
 test_gs_tiny_string_OBJC_FILES   = test_gs_tiny_string.m
+test_gs_inline_dict_OBJC_FILES   = test_gs_inline_dict.m
 
 ADDITIONAL_OBJCFLAGS += -fobjc-runtime=gnustep-2.0 -fblocks
 ADDITIONAL_LDFLAGS   += -lgnustep-base -lpthread
