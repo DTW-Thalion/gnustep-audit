@@ -1,0 +1,139 @@
+This is gnustep-make 2.9.3. Type 'make print-gnustep-make-help' for help.
+Running in gnustep-make version 2 strict mode.
+Making all for tool bench_msg_send...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_retain_release...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_weak_ref...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_autorelease...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_string_hash...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_dict_lookup...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_json_parse...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_runloop_timers...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_nscache...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+Making all for tool bench_cfarray_append...
+make[3]: Nothing to be done for 'internal-tool-compile'.
+{"bench":"msg_send_class","iterations":10000000,"ns_per_op":1.7,"ops_per_sec":580032946}
+{"bench":"msg_send_noop","iterations":10000000,"ns_per_op":1.3,"ops_per_sec":746870612}
+{"bench":"msg_send_respondsToSelector","iterations":10000000,"ns_per_op":6.9,"ops_per_sec":144477771}
+{"bench":"msg_send_class_method","iterations":10000000,"ns_per_op":1.3,"ops_per_sec":746870612}
+{"bench":"retain_release_pair","iterations":10000000,"ns_per_op":20.4,"ops_per_sec":49100479}
+{"bench":"retain_only","iterations":10000000,"ns_per_op":10.3,"ops_per_sec":97072959}
+{"bench":"autorelease_pool_drain","iterations":10000,"ns_per_op":59707.1,"ops_per_sec":16748}
+{"bench":"autorelease_pool_empty","iterations":10000000,"ns_per_op":11.9,"ops_per_sec":84010881}
+{"bench":"weak_ref_cycle_1t","threads":1,"iterations":1000000}
+  thread[0]        101.3 ns/op       9869613 ops/sec
+BENCH_THREADED weak_ref_cycle_1t                1 threads x 1000000 ops  wall: 101.7 ms         101.7 ns/op       9828725 ops/sec (aggregate)
+{"bench":"weak_ref_store_1t","threads":1,"iterations":1000000}
+  thread[0]         80.8 ns/op      12374599 ops/sec
+BENCH_THREADED weak_ref_store_1t                1 threads x 1000000 ops  wall: 81.0 ms          81.0 ns/op      12352496 ops/sec (aggregate)
+{"bench":"weak_ref_load_1t","threads":1,"iterations":1000000}
+  thread[0]         32.1 ns/op      31147699 ops/sec
+BENCH_THREADED weak_ref_load_1t                 1 threads x 1000000 ops  wall: 32.3 ms          32.3 ns/op      30993913 ops/sec (aggregate)
+{"bench":"weak_ref_cycle_2t","threads":2,"iterations":1000000}
+  thread[0]        642.1 ns/op       1557365 ops/sec
+  thread[1]        648.3 ns/op       1542496 ops/sec
+BENCH_THREADED weak_ref_cycle_2t                2 threads x 1000000 ops  wall: 648.5 ms         324.3 ns/op       3083997 ops/sec (aggregate)
+{"bench":"weak_ref_store_2t","threads":2,"iterations":1000000}
+  thread[0]        359.4 ns/op       2782652 ops/sec
+  thread[1]        366.5 ns/op       2728788 ops/sec
+BENCH_THREADED weak_ref_store_2t                2 threads x 1000000 ops  wall: 366.8 ms         183.4 ns/op       5453120 ops/sec (aggregate)
+{"bench":"weak_ref_load_2t","threads":2,"iterations":1000000}
+  thread[0]        196.7 ns/op       5082938 ops/sec
+  thread[1]        200.8 ns/op       4980459 ops/sec
+BENCH_THREADED weak_ref_load_2t                 2 threads x 1000000 ops  wall: 201.0 ms         100.5 ns/op       9948927 ops/sec (aggregate)
+{"bench":"weak_ref_cycle_4t","threads":4,"iterations":1000000}
+  thread[0]       2126.0 ns/op        470377 ops/sec
+  thread[1]       2102.3 ns/op        475678 ops/sec
+  thread[2]       2014.4 ns/op        496419 ops/sec
+  thread[3]       2120.8 ns/op        471523 ops/sec
+BENCH_THREADED weak_ref_cycle_4t                4 threads x 1000000 ops  wall: 2126.1 ms         531.5 ns/op       1881364 ops/sec (aggregate)
+{"bench":"weak_ref_store_4t","threads":4,"iterations":1000000}
+  thread[0]       1287.1 ns/op        776970 ops/sec
+  thread[1]       1197.0 ns/op        835445 ops/sec
+  thread[2]       1216.7 ns/op        821901 ops/sec
+  thread[3]       1282.5 ns/op        779738 ops/sec
+BENCH_THREADED weak_ref_store_4t                4 threads x 1000000 ops  wall: 1287.3 ms         321.8 ns/op       3107382 ops/sec (aggregate)
+{"bench":"weak_ref_load_4t","threads":4,"iterations":1000000}
+  thread[0]        823.5 ns/op       1214399 ops/sec
+  thread[1]        821.1 ns/op       1217951 ops/sec
+  thread[2]        768.9 ns/op       1300489 ops/sec
+  thread[3]        811.6 ns/op       1232176 ops/sec
+BENCH_THREADED weak_ref_load_4t                 4 threads x 1000000 ops  wall: 823.6 ms         205.9 ns/op       4856482 ops/sec (aggregate)
+{"bench":"weak_ref_cycle_8t","threads":8,"iterations":1000000}
+  thread[0]       6922.7 ns/op        144453 ops/sec
+  thread[1]       6932.1 ns/op        144255 ops/sec
+  thread[2]       6884.2 ns/op        145261 ops/sec
+  thread[3]       6884.5 ns/op        145255 ops/sec
+  thread[4]       6696.0 ns/op        149343 ops/sec
+  thread[5]       6940.1 ns/op        144091 ops/sec
+  thread[6]       6822.2 ns/op        146581 ops/sec
+  thread[7]       6917.4 ns/op        144563 ops/sec
+BENCH_THREADED weak_ref_cycle_8t                8 threads x 1000000 ops  wall: 6940.7 ms         867.6 ns/op       1152618 ops/sec (aggregate)
+{"bench":"weak_ref_store_8t","threads":8,"iterations":1000000}
+  thread[0]       3761.6 ns/op        265847 ops/sec
+  thread[1]       3702.8 ns/op        270069 ops/sec
+  thread[2]       3788.8 ns/op        263933 ops/sec
+  thread[3]       3677.4 ns/op        271929 ops/sec
+  thread[4]       3569.8 ns/op        280125 ops/sec
+  thread[5]       3805.2 ns/op        262798 ops/sec
+  thread[6]       3745.8 ns/op        266969 ops/sec
+  thread[7]       3787.1 ns/op        264053 ops/sec
+BENCH_THREADED weak_ref_store_8t                8 threads x 1000000 ops  wall: 3805.5 ms         475.7 ns/op       2102240 ops/sec (aggregate)
+{"bench":"weak_ref_load_8t","threads":8,"iterations":1000000}
+  thread[0]       2582.3 ns/op        387252 ops/sec
+  thread[1]       2650.4 ns/op        377308 ops/sec
+  thread[2]       2690.6 ns/op        371666 ops/sec
+  thread[3]       2544.2 ns/op        393047 ops/sec
+  thread[4]       2655.8 ns/op        376540 ops/sec
+  thread[5]       2681.9 ns/op        372873 ops/sec
+  thread[6]       2690.0 ns/op        371751 ops/sec
+  thread[7]       2655.7 ns/op        376556 ops/sec
+BENCH_THREADED weak_ref_load_8t                 8 threads x 1000000 ops  wall: 2690.9 ms         336.4 ns/op       2973023 ops/sec (aggregate)
+{"bench":"autorelease_1_obj","iterations":100000,"ns_per_op":70.7,"ops_per_sec":14135674}
+{"bench":"autorelease_10_obj","iterations":10000,"ns_per_op":498.5,"ops_per_sec":2006139}
+{"bench":"autorelease_100_obj","iterations":10000,"ns_per_op":5299.1,"ops_per_sec":188710}
+{"bench":"autorelease_1000_obj","iterations":1000,"ns_per_op":54146.5,"ops_per_sec":18468}
+{"bench":"autorelease_nested_5","iterations":10000,"ns_per_op":2798.5,"ops_per_sec":357334}
+{"bench":"autorelease_empty_pool","iterations":100000,"ns_per_op":10.3,"ops_per_sec":96674401}
+{"bench":"hash_short_5","iterations":5000000,"ns_per_op":7.4,"ops_per_sec":134995032}
+{"bench":"hash_medium_50","iterations":5000000,"ns_per_op":2.0,"ops_per_sec":497156266}
+{"bench":"hash_long_500","iterations":5000000,"ns_per_op":2.0,"ops_per_sec":496159724}
+{"bench":"hash_equality_short","iterations":5000000,"ns_per_op":14.3,"ops_per_sec":69970780}
+{"bench":"dict_lookup_small_hit","iterations":5000000,"ns_per_op":115.7,"ops_per_sec":8641631}
+{"bench":"dict_lookup_small_miss","iterations":5000000,"ns_per_op":4.5,"ops_per_sec":222294344}
+{"bench":"dict_lookup_large_hit","iterations":1000000,"ns_per_op":148.4,"ops_per_sec":6737509}
+{"bench":"dict_lookup_large_miss","iterations":1000000,"ns_per_op":10.4,"ops_per_sec":96298294}
+{"bench":"dict_enumerate_large","iterations":100,"ns_per_op":263988.0,"ops_per_sec":3788}
+JSON document size: 142196 bytes (138.9 KB)
+{"bench":"json_parse_full","iterations":1000,"ns_per_op":4963326.6,"ops_per_sec":201}
+{"bench":"json_parse_throughput_mb_s","value":29.3}
+{"bench":"json_parse_mutable","iterations":1000,"ns_per_op":6072137.5,"ops_per_sec":165}
+{"bench":"json_serialize","iterations":1000,"ns_per_op":11315238.4,"ops_per_sec":88}
+NSHomeDirectoryForUser(toddw) failed.
+NSHomeDirectoryForUser(toddw) failed.
+NSHomeDirectoryForUser(toddw) failed.
+NSHomeDirectoryForUser(toddw) failed.
+NSHomeDirectoryForUser(toddw) failed.
+2026-04-12 16:25:23.119 bench_runloop_timers[10568:29492] WARNING ... there are 1000 timers scheduled in mode NSDefaultRunLoopMode of <NSRunLoop: 0x90397c8>
+{"bench":"runloop_1_timers","iterations":10000,"ns_per_op":476469.6,"ops_per_sec":2099}
+{"bench":"runloop_10_timers","iterations":10000,"ns_per_op":182496.0,"ops_per_sec":5480}
+{"bench":"runloop_100_timers","iterations":10000,"ns_per_op":18087.0,"ops_per_sec":55288}
+{"bench":"runloop_1000_timers","iterations":10000,"ns_per_op":8527.2,"ops_per_sec":117272}
+{"bench":"nscache_get_small_hit","iterations":500000,"ns_per_op":61.7,"ops_per_sec":16205354}
+{"bench":"nscache_get_small_miss","iterations":500000,"ns_per_op":30.1,"ops_per_sec":33172337}
+{"bench":"nscache_set_small","iterations":500000,"ns_per_op":292.7,"ops_per_sec":3416647}
+{"bench":"nscache_get_large_hit","iterations":50000,"ns_per_op":54.8,"ops_per_sec":18234865}
+{"bench":"nscache_get_large_miss","iterations":50000,"ns_per_op":30.2,"ops_per_sec":33145509}
+{"name":"nscache_set_large_evict","ops_per_sec":2425477.2,"ns_per_op":412.3,"iterations":50000}
+{"bench":"nsarray_append_100k","iterations":100,"ns_per_op":2563479.0,"ops_per_sec":390}
+{"bench":"nsarray_append_100k_capacity","iterations":100,"ns_per_op":2470907.0,"ops_per_sec":405}
+{"bench":"nsarray_insert_front_10k","iterations":10,"ns_per_op":4709060.0,"ops_per_sec":212}
+{"bench":"nsarray_remove_last_100k","iterations":100,"ns_per_op":2556083.0,"ops_per_sec":391}
