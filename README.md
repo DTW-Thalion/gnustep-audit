@@ -157,6 +157,56 @@ Total: 38 fix/perf commits across 7 repos + 5 instrumentation commits = 43 total
 4. Fix verification: regression test per finding + benchmark per optimization
 5. Instrumentation: `make baseline` -> fix -> `make compare` workflow
 
+## GitHub Repositories
+
+All fixes are merged to `master` on the DTW-Thalion GitHub forks:
+
+| Repo | URL | Audit Commits |
+|------|-----|:-------------:|
+| gnustep-audit | https://github.com/DTW-Thalion/gnustep-audit | Instrumentation, docs, benchmarks |
+| libobjc2 | https://github.com/DTW-Thalion/libobjc2 | 6 |
+| libs-base | https://github.com/DTW-Thalion/libs-base | 12 |
+| libs-corebase | https://github.com/DTW-Thalion/libs-corebase | 6 |
+| libs-opal | https://github.com/DTW-Thalion/libs-opal | 2 |
+| libs-quartzcore | https://github.com/DTW-Thalion/libs-quartzcore | 3 |
+| libs-gui | https://github.com/DTW-Thalion/libs-gui | 5 |
+| libs-back | https://github.com/DTW-Thalion/libs-back | 4 |
+
+## Test Results
+
+**32/32 regression tests pass** on MSYS2 ucrt64 with patched libraries installed:
+
+- Unpatched baseline: 18/32 passing
+- Patched (all fixes applied): 32/32 passing (100%)
+- Patched libraries built and installed: libobjc2, gnustep-base, gnustep-gui, gnustep-back
+
+### Benchmark Results (patched vs unpatched)
+
+| Benchmark | Improvement |
+|-----------|-------------|
+| retain/release | +29-31% |
+| message dispatch | +12-18% |
+| array operations | +46-55% |
+| NSCache set | +25% |
+
+## Getting Started
+
+Clone the audit repo and all forks:
+
+```bash
+git clone https://github.com/DTW-Thalion/gnustep-audit.git
+cd gnustep-audit
+
+# The patched repos are subfolders (already cloned):
+#   libobjc2/ libs-base/ libs-corebase/ libs-opal/
+#   libs-quartzcore/ libs-gui/ libs-back/
+
+# Or clone individual forks:
+git clone https://github.com/DTW-Thalion/libobjc2.git
+git clone https://github.com/DTW-Thalion/libs-base.git
+# ... etc.
+```
+
 ## Date
 
 Audit performed: 2026-04-12

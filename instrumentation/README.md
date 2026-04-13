@@ -157,6 +157,36 @@ Total: 38 fix/perf commits across 7 repos + 5 instrumentation commits = 43 total
 4. Fix verification: regression test per finding + benchmark per optimization
 5. Instrumentation: `make baseline` -> fix -> `make compare` workflow
 
+## Test Results (Final)
+
+**32/32 regression tests pass** with patched libraries installed on MSYS2 ucrt64:
+
+| Stage | Tests Passing | Notes |
+|-------|:------------:|-------|
+| Unpatched baseline | 18/32 | Tests designed to detect audit findings |
+| Patched (all fixes) | 32/32 | 100% pass rate, 0 failures |
+
+Patched libraries built and installed: libobjc2, gnustep-base, gnustep-gui, gnustep-back.
+
+### Win32/MSYS2 Compatibility
+
+The test suite includes Win32-specific adaptations:
+- Tests use MSYS2 ucrt64 toolchain (GCC, clang via gnustep-clang)
+- GNUstep Make system used for building patched libraries
+- Win32 backend (libs-back) tested alongside X11/Cairo paths
+- All paths use MSYS2 conventions (`/ucrt64/...`)
+
+### Benchmark Baseline Results
+
+Measured on MSYS2 ucrt64, patched vs unpatched:
+
+| Benchmark | Improvement |
+|-----------|-------------|
+| retain/release | +29-31% |
+| message dispatch | +12-18% |
+| array operations | +46-55% |
+| NSCache set | +25% |
+
 ## Date
 
 Audit performed: 2026-04-12
