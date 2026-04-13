@@ -113,3 +113,29 @@ But the compelling reason to **NOT** revert is that the measurement is incomplet
 ## Status
 
 This addendum resolves B2 spike item 3. Sprint 4 tiny-string scope is complete pending the suite extension recommended above, which should be tracked as a new task rather than reopening B2.
+
+---
+
+## Decision: GSTinyString factory path disabled (2026-04-13)
+
+After reviewing this addendum, the audit owner chose **strict application of the rule** rather than the "extend the suite first, decide second" path I recommended above. The reasoning articulated was: the goal is to improve performance; the measured data shows tinies are a net loss on the workloads we care enough about to benchmark; if the feature's intended wins exist they should show up somewhere in a 43-benchmark suite; the absence of measurable wins across the suite is itself evidence that the feature does not serve our performance goals.
+
+**Action taken:** `libs-base/Source/GSString.m` `+[GSTinyString load]` edited to force `useTinyStrings = NO` after registration. The class registration call is retained so `+[GSTinyString alloc]` stays safe for any stray direct call site, but every factory path that checks `useTinyStrings` falls through to heap-backed `GSCInlineString` / `GSCString` construction. Tests 33/33 pass under the new state. The `test_gs_tiny_string.m` correctness suite runtime-gates on `is_tagged()` and skips cleanly.
+
+**Committed to `DTW-Thalion/libs-base` master** in the commit that follows this addendum. The `GSTinyString` class definition, hash, `-length`, `-isEqual:`, etc. remain in place; only the factory gate is disabled. Re-enabling is a one-line change: revert `useTinyStrings = NO;` back to the register-and-assign form.
+
+**Canonical `baseline.jsonl` recaptured** under the tiny-off state. The `baseline_tiny.jsonl` and `baseline_no_tiny.jsonl` artifacts committed earlier in this addendum remain as historical reference for the measurement that drove the decision.
+
+**Rule application summary:**
+- Change under evaluation: `GSTinyString` tagged-pointer small-string feature
+- Purely performance-motivated? Yes (no stability or concurrency justification)
+- Solves a stability/concurrency problem? No
+- Improves performance on measured workloads? No — 1 win, 4 losses, net negative
+- Compelling reason to retain? Deemed insufficient — benchmark suite absence-of-wins treated as evidence, not gap
+- **Decision: revert (disable factory, retain class for safety)**
+
+**Follow-up items (not blocking):**
+
+1. If an extended benchmark suite is added later that covers short-string construction throughput, allocator pressure, or `isEqual`-via-identity, re-measure. A clear net win on the extended suite would justify re-enabling.
+2. A separate future spike could target `GSTinyString -hash` optimization to close the 3.85× gap against cached heap-string hash. If successful, the hash-loss half of the current data disappears and retain-or-revert can be re-evaluated.
+3. Upstream divergence: our fork now differs from `gnustep/libs-base` on this specific `+load` method. Future upstream merges will need to preserve the disable unless upstream itself decides to disable tinies.
