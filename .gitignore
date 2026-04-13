@@ -15,3 +15,7 @@ libs-opal/
 libs-quartzcore/
 libs-gui/
 libs-back/
+
+# Ephemeral benchmark output (baselines are committed, per-run results are not)
+instrumentation/benchmarks/results/current.jsonl
+instrumentation/benchmarks/results/current.json

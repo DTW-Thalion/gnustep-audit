@@ -69,7 +69,8 @@ tests:
 		echo ""; \
 		echo "--- tests/$$repo ---"; \
 		if [ -f "$(TESTS_DIR)/$$repo/GNUmakefile" ]; then \
-			$(MAKE) -C "$(TESTS_DIR)/$$repo" check || failed=$$((failed + 1)); \
+			$(MAKE) -C "$(TESTS_DIR)/$$repo" all && \
+			$(MAKE) -C "$(TESTS_DIR)/$$repo" run-tests || failed=$$((failed + 1)); \
 		else \
 			echo "  (no GNUmakefile yet, skipping)"; \
 		fi; \
@@ -88,7 +89,8 @@ define REPO_TEST_TARGET
 tests-$(1):
 	@echo "=== Running tests for $(1) ==="
 	@if [ -f "$(TESTS_DIR)/$(1)/GNUmakefile" ]; then \
-		$(MAKE) -C "$(TESTS_DIR)/$(1)" check; \
+		$(MAKE) -C "$(TESTS_DIR)/$(1)" all && \
+		$(MAKE) -C "$(TESTS_DIR)/$(1)" run-tests; \
 	else \
 		echo "  (no GNUmakefile yet for $(1))"; \
 	fi
@@ -110,81 +112,43 @@ benchmarks:
 	fi
 	@echo ""
 	@echo "--- Benchmark results ---"
-	@echo "[" > "$(RESULTS_DIR)/current.json"
-	@first=1; \
-	for bench in $(BENCH_PROGRAMS); do \
+	@# Output is JSONL (one JSON object per line), not a JSON array.
+	@# This matches what the benchmark binaries emit with --json.
+	@: > "$(RESULTS_DIR)/current.jsonl"
+	@for bench in $(BENCH_PROGRAMS); do \
 		prog="$(BENCHMARKS_DIR)/obj/$$bench"; \
-		if [ -x "$$prog" ] || [ -x "$$prog.exe" ]; then \
-			if [ $$first -eq 0 ]; then echo "," >> "$(RESULTS_DIR)/current.json"; fi; \
-			$$prog --json 2>/dev/null >> "$(RESULTS_DIR)/current.json" || \
-			$$prog.exe --json 2>/dev/null >> "$(RESULTS_DIR)/current.json" || true; \
-			first=0; \
-			$$prog 2>/dev/null || $$prog.exe 2>/dev/null || true; \
+		if [ -x "$$prog.exe" ]; then prog="$$prog.exe"; fi; \
+		if [ -x "$$prog" ]; then \
+			"$$prog" --json 2>/dev/null >> "$(RESULTS_DIR)/current.jsonl" || true; \
 		else \
 			echo "  $$bench: not built, skipping"; \
 		fi; \
 	done
-	@echo "" >> "$(RESULTS_DIR)/current.json"
-	@echo "]" >> "$(RESULTS_DIR)/current.json"
 	@echo ""
-	@echo "Results written to $(RESULTS_DIR)/current.json"
+	@echo "Results written to $(RESULTS_DIR)/current.jsonl ($$(wc -l < $(RESULTS_DIR)/current.jsonl) benchmarks)"
 
 # ============================================================================
 # Baseline and compare
 # ============================================================================
 
 baseline: benchmarks
-	@cp "$(RESULTS_DIR)/current.json" "$(RESULTS_DIR)/baseline.json"
-	@cp "$(RESULTS_DIR)/current.json" "$(RESULTS_DIR)/baseline-$(TIMESTAMP).json"
+	@cp "$(RESULTS_DIR)/current.jsonl" "$(RESULTS_DIR)/baseline.jsonl"
+	@cp "$(RESULTS_DIR)/current.jsonl" "$(RESULTS_DIR)/baseline-$(TIMESTAMP).jsonl"
 	@echo ""
 	@echo "=== Baseline saved ==="
-	@echo "  $(RESULTS_DIR)/baseline.json"
-	@echo "  $(RESULTS_DIR)/baseline-$(TIMESTAMP).json"
+	@echo "  $(RESULTS_DIR)/baseline.jsonl"
+	@echo "  $(RESULTS_DIR)/baseline-$(TIMESTAMP).jsonl"
 
 compare: benchmarks
-	@if [ ! -f "$(RESULTS_DIR)/baseline.json" ]; then \
+	@if [ ! -f "$(RESULTS_DIR)/baseline.jsonl" ]; then \
 		echo "ERROR: No baseline found. Run 'make baseline' first."; \
 		exit 1; \
 	fi
 	@echo ""
 	@echo "=== Comparing current vs baseline ==="
-	@python3 -c " \
-import json, sys; \
-try: \
-    base = json.load(open('$(RESULTS_DIR)/baseline.json')); \
-    curr = json.load(open('$(RESULTS_DIR)/current.json')); \
-except Exception as e: \
-    print(f'Error loading results: {e}'); sys.exit(1); \
-base_map = {b['name']: b for b in base if isinstance(b, dict) and 'name' in b}; \
-curr_map = {c['name']: c for c in curr if isinstance(c, dict) and 'name' in c}; \
-all_names = sorted(set(list(base_map.keys()) + list(curr_map.keys()))); \
-print(f'{\"Benchmark\":<40} {\"Baseline ns/op\":>14} {\"Current ns/op\":>14} {\"Delta\":>10} {\"Status\":>8}'); \
-print('-' * 90); \
-regressions = 0; \
-for name in all_names: \
-    b = base_map.get(name); c = curr_map.get(name); \
-    if b and c: \
-        bns = b['ns_per_op']; cns = c['ns_per_op']; \
-        pct = ((cns - bns) / bns) * 100 if bns > 0 else 0; \
-        status = 'FASTER' if pct < -2 else ('SLOWER' if pct > 5 else 'OK'); \
-        if status == 'SLOWER': regressions += 1; \
-        print(f'{name:<40} {bns:>14.1f} {cns:>14.1f} {pct:>+9.1f}% {status:>8}'); \
-    elif b: \
-        print(f'{name:<40} {b[\"ns_per_op\"]:>14.1f} {\"N/A\":>14} {\"MISSING\":>19}'); \
-    else: \
-        print(f'{name:<40} {\"N/A\":>14} {c[\"ns_per_op\"]:>14.1f} {\"NEW\":>19}'); \
-print('-' * 90); \
-if regressions: \
-    print(f'WARNING: {regressions} benchmark(s) regressed (>5%% slower)'); sys.exit(1); \
-else: \
-    print('All benchmarks within tolerance.'); \
-" 2>/dev/null || \
-	awk 'BEGIN { \
-		print "  (python3 not available, falling back to awk)"; \
-		print "  Baseline: $(RESULTS_DIR)/baseline.json"; \
-		print "  Current:  $(RESULTS_DIR)/current.json"; \
-		print "  Please compare manually or install python3."; \
-	}' /dev/null
+	@python3 "$(INSTRUMENTATION_DIR)/compare_results.py" \
+		"$(RESULTS_DIR)/baseline.jsonl" \
+		"$(RESULTS_DIR)/current.jsonl"
 
 # ============================================================================
 # Clean
