@@ -7,14 +7,17 @@
 obj/
 
 # Cloned GNUstep repos (tracked as submodules)
-# These have their own git repos with audit fix commits
-libobjc2/
-libs-base/
-libs-corebase/
-libs-opal/
-libs-quartzcore/
-libs-gui/
-libs-back/
+# These have their own git repos with audit fix commits.
+# Leading slash anchors to repo root — otherwise the pattern also
+# matches instrumentation/tests/libs-base/, instrumentation/benchmarks/
+# subdirs named after these repos, etc.
+/libobjc2/
+/libs-base/
+/libs-corebase/
+/libs-opal/
+/libs-quartzcore/
+/libs-gui/
+/libs-back/
 
 # Ephemeral benchmark output (baselines are committed, per-run results are not)
 instrumentation/benchmarks/results/current.jsonl
