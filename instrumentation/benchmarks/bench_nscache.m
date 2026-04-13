@@ -114,27 +114,67 @@ int main(int argc, char *argv[]) {
                 });
             }
 
-            /* Benchmark 6: Large cache set causing eviction */
-            /* Note: cannot use BENCH macro directly here because commas
-               in ObjC message sends confuse the C preprocessor. */
+            /* Benchmark 6a: Large cache pure overwrite (no eviction)
+             * Every iteration hits an existing key from the initial populate,
+             * so the cache stays at its count limit with no LRU churn.
+             * Measures the cost of a pure set on an existing entry.
+             *
+             * Benchmark 6b: Large cache pure eviction
+             * Every iteration inserts a key that was never in the cache,
+             * forcing eviction of the LRU entry on every call. Uses a
+             * monotonically increasing offset from 1,000,000 so keys never
+             * collide with the initial populate or with later iterations.
+             *
+             * Note: cannot use BENCH_JSON macro here because commas in ObjC
+             * message sends confuse the C preprocessor. */
             {
+                /* --- 6a: pure overwrite --- */
                 /* warmup */
                 for (long _w = 0; _w < ITERS_LARGE / 10; _w++) {
+                    NSString *_k = [keys objectAtIndex:(NSUInteger)(_w % LARGE_SIZE)];
+                    NSNumber *_v = [vals objectAtIndex:(NSUInteger)(_w % LARGE_SIZE)];
+                    [cache setObject:_v forKey:_k];
+                }
+                double _start = bench_time_ns();
+                for (long _i = 0; _i < ITERS_LARGE; _i++) {
+                    NSString *_k = [keys objectAtIndex:(NSUInteger)(_i % LARGE_SIZE)];
+                    NSNumber *_v = [vals objectAtIndex:(NSUInteger)(_i % LARGE_SIZE)];
+                    [cache setObject:_v forKey:_k];
+                }
+                double _elapsed = bench_time_ns() - _start;
+                double _ns = _elapsed / (double)ITERS_LARGE;
+                double _ops = (double)ITERS_LARGE / (_elapsed / 1e9);
+                if (json) {
+                    printf("{\"bench\":\"nscache_set_large_overwrite\",\"ops_per_sec\":%.1f,\"ns_per_op\":%.1f,\"iterations\":%d}\n", _ops, _ns, ITERS_LARGE);
+                } else {
+                    printf("BENCH %-40s %10d ops  %10.1f ns/op  %12.0f ops/sec\n", "nscache_set_large_overwrite", ITERS_LARGE, _ns, _ops);
+                }
+            }
+            {
+                /* --- 6b: pure eviction --- */
+                const long _evict_offset = 1000000;
+                /* warmup — each warmup iteration also triggers eviction,
+                 * so the cache transitions from string-keyed to
+                 * integer-keyed steady state before measurement starts. */
+                for (long _w = 0; _w < ITERS_LARGE / 10; _w++) {
                     @autoreleasepool {
-                        [cache setObject:@(_w) forKey:@(_w)];
+                        [cache setObject:@(_w) forKey:@(_evict_offset + _w)];
                     }
                 }
                 double _start = bench_time_ns();
                 for (long _i = 0; _i < ITERS_LARGE; _i++) {
                     @autoreleasepool {
-                        [cache setObject:@(_i) forKey:@(_i)];
+                        /* _i starts at 0 but offset puts keys well beyond
+                         * anything in the cache, and _i is monotonically
+                         * increasing so each key is guaranteed new. */
+                        [cache setObject:@(_i) forKey:@(_evict_offset + (ITERS_LARGE / 10) + _i)];
                     }
                 }
                 double _elapsed = bench_time_ns() - _start;
                 double _ns = _elapsed / (double)ITERS_LARGE;
                 double _ops = (double)ITERS_LARGE / (_elapsed / 1e9);
                 if (json) {
-                    printf("{\"name\":\"nscache_set_large_evict\",\"ops_per_sec\":%.1f,\"ns_per_op\":%.1f,\"iterations\":%d}\n", _ops, _ns, ITERS_LARGE);
+                    printf("{\"bench\":\"nscache_set_large_evict\",\"ops_per_sec\":%.1f,\"ns_per_op\":%.1f,\"iterations\":%d}\n", _ops, _ns, ITERS_LARGE);
                 } else {
                     printf("BENCH %-40s %10d ops  %10.1f ns/op  %12.0f ops/sec\n", "nscache_set_large_evict", ITERS_LARGE, _ns, _ops);
                 }
