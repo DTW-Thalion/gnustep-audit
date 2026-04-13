@@ -104,4 +104,44 @@ If the retry passes the gate, commit to both repos. If it fails or breaks tests 
 
 ## Status
 
-Design recorded, retry ready to dispatch.
+Design recorded, retry implemented and measured, then reverted after reviewer feedback — see below.
+
+---
+
+## Reviewer feedback (2026-04-13, late)
+
+After implementing and committing the side-band retry (libobjc2 `0cc8962`, libs-base `c12ac2391`, storm reduced 23x on the microbenchmark), an expert reviewer with deep libobjc2 knowledge rejected the premise. Their response to the audit finding that motivated B1 (originally tracked as PF-4):
+
+> *"PF-4 was an intentional design choice. Method replacements are infrequent. The proposed change would make things worse."*
+
+Their point in detail: the global `objc_method_cache_version` counter works the way it does because the runtime assumes method replacements are RARE events (hours or days apart in a real application, not microseconds). Category loading happens at `dlopen`, once per process. `class_replaceMethod` on an already-registered class bypasses the dtable path entirely and does NOT bump the counter (as we verified earlier today in the bench_kvc_cache_storm diagnostic). KVO install bumps the counter by ~309 once per swizzled subclass, which happens at most once per observed class per process lifetime. In aggregate, the counter moves maybe a few dozen times during program startup and then stays effectively static for the rest of the run.
+
+Our `bench_kvc_cache_storm` measured 23x reduction by directly incrementing `objc_method_cache_version` via `atomic_fetch_add_explicit` in a 10,000-iteration tight loop — a scenario that does not occur in any real workload. The 320 ns post-B1 storm number measures "what KVC cost would be IF the counter were being bumped 10,000 times per iteration" — but in a real application the counter is static after startup, so ALL KVC lookups hit the fast path and the refresh cost is never paid.
+
+**The B1 optimization is real in the microbenchmark but practically irrelevant in production.** The reviewer correctly identified this: adding per-class counters introduces a pointer chase on every KVC check (read `cls->extra_data`, null check, read the atomic field) in exchange for eliminating a refresh cost that virtually never happens in production workloads. Net effect on real applications: **slightly slower**, because we added overhead to the hot path to fix a cold path that wasn't hot to begin with.
+
+### Decision: REVERT B1 Phase A
+
+Under the audit's performance rule — "purely performance-motivated change that does not improve real-workload performance should be reverted unless there is a compelling reason to retain" — B1 fails the rule. The compelling-reason test would require evidence of a real workload where method mutations happen frequently enough for the storm to bite, and we have no such evidence. The reviewer's domain knowledge is the dispositive evidence pointing the other direction.
+
+**Reverts applied:**
+- `libobjc2` commit `a361c1a` reverts `0cc8962` (removes the cache_generation field from `struct reference_list`, removes helpers and OBJC_PUBLIC wrapper, removes bump calls in dtable.c, removes declaration in objc/slot.h).
+- `libs-base` commit `2c5eb64fa` reverts `c12ac2391` (restores KVC cache to using the global `objc_method_cache_version` comparison).
+- Both reverts rebuilt, installed, and 34/34 regression tests confirmed passing.
+- `bench_kvc_cache_storm` confirmed back to pre-B1 baseline (7279 ns, matching the ~7350 ns pre-B1 number within noise).
+
+### Retained from the failed retry
+
+The `instrumentation/benchmarks/bench_kvc_cache_storm.m` benchmark stays committed as **instrumentation infrastructure**. It is useful for anyone who later finds a real workload where the counter moves frequently enough to matter — in that case, re-measure with a representative benchmark (not a tight loop on `atomic_fetch_add`) and re-open the question with real-workload evidence. The `baseline_pre_b1.jsonl` historical artifact stays as a snapshot of the pre-B1 canonical state.
+
+### Lessons
+
+1. **Microbenchmarks can mislead.** A 23x reduction on a synthetic benchmark is meaningless if the synthetic scenario does not map to any production workload. Our `kvc_counter_bump` microbenchmark paid 4 ns per bump and our storm benchmark paid 730 ns per slot refresh — those numbers are real, but the bump rate in production is a few dozen per program lifetime, not 10,000 per millisecond.
+
+2. **Defer to domain expertise when it contradicts microbenchmark optimism.** The reviewer knew the design history and the realistic mutation frequency. We knew only what the synthetic benchmark measured. Their judgment was the correct tiebreaker.
+
+3. **The audit's original PF-4 framing was itself wrong.** The audit found this as a finding because the code LOOKED expensive (process-wide invalidation on method replacement!), and the microbenchmark confirmed it was expensive IF exercised. But the runtime's design explicitly assumed the path would not be exercised at high frequency, and that assumption is correct in practice. The finding should have been closed during the original audit as "theoretically a hot path, practically static."
+
+### Status
+
+B1 Phase A: **REVERTED, closed.** No further B1 work planned. The bench_kvc_cache_storm benchmark + historical baselines remain as instrumentation for any future re-evaluation.
