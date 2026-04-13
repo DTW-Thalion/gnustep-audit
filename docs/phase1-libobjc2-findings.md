@@ -1,7 +1,7 @@
 # Phase 1: libobjc2 Runtime Audit Findings
 
-**Date:** 2026-04-12
-**Status:** ALL FIXED — 6 commits (a492a11, bfe1610, ddbb579, 3c13ecc, d0053ee, d6ddb0e)
+**Date:** 2026-04-13
+**Status:** Retained state — most findings fixed and shipping. **Post-review reverts:** RB-2 (NULL selector guard on dispatch hot path), TS-14 (bounded cleanupPools loop), and the LockGuard portion of TS-3 (selector introspection reads). **Post-review fix-the-fix:** RB-7 (`protocol_copyPropertyList2` outCount contract — the NULL-protocol guard was removed as dead code and `*outCount = 0` was added to all early returns). See `../reviewer-feedback-2026-04-13.md` and `../../instrumentation/experiment-log.md` for full rationale. Finding text below reflects the original audit and should be read with those docs as the authority on retained state.
 **Repo:** libobjc2 (150 files, Objective-C runtime)
 **Auditors:** Automated code analysis
 

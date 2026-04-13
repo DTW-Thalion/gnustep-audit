@@ -1,7 +1,9 @@
 # Spike B2 Addendum — Profile-Off vs Profile-On GSTinyString Measurement
 
+> **HISTORICAL — GSTinyString FACTORY IS DISABLED.** The tagged-pointer branch was slower than `GSCString` in head-to-head measurement once test coverage was complete. The class remains in the tree as dormant code but the factory path is not wired up. See `instrumentation/experiment-log.md` § GSTinyString for the authoritative account.
+
 **Date:** 2026-04-13 (addendum to `docs/spikes/2026-04-13-tagged-pointer-nsstring.md`)
-**Status:** Item 3 of the B2 spike's residual scope, completed.
+**Status:** Item 3 of the B2 spike's residual scope, completed — but the overall GSTinyString factory was subsequently **disabled**.
 **Measurement artifacts:**
 - `instrumentation/benchmarks/results/baseline_tiny.jsonl`
 - `instrumentation/benchmarks/results/baseline_no_tiny.jsonl`

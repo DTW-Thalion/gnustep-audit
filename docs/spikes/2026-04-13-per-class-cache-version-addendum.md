@@ -1,7 +1,9 @@
 # Spike B1 Addendum — Tail-append design failed, retrying with side-band storage
 
+> **HISTORICAL — B1 WAS FULLY REVERTED.** Both the tail-append attempt documented here and the subsequent side-band retry were reverted after a libobjc2 maintainer rejected the change: the global method cache counter is an intentional design choice, method replacement is rare in production, and the per-class counter would regress real workloads. See `instrumentation/experiment-log.md` § B1 and `docs/reviewer-feedback-2026-04-13.md` § PF-4 for the authoritative account. This document is preserved as an engineering record.
+
 **Date:** 2026-04-13 (addendum to `docs/spikes/2026-04-13-per-class-cache-version.md`)
-**Status:** First implementation attempt FAILED, retry with a different storage strategy.
+**Status:** First implementation attempt FAILED, retry with a different storage strategy. **Both attempts subsequently REVERTED.**
 
 ## What the original spike got wrong
 

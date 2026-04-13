@@ -18,32 +18,57 @@ A comprehensive code audit and fix implementation for the GNUstep core runtime a
 
 ## Results
 
-**150 correctness/safety findings fixed** across all severity levels:
+The bulk of the audit's correctness findings (~140 retained fixes across Critical/High/Medium/Low severities) are in the DTW-Thalion forks — thread-safety, security, robustness, and broken-API bugs. The per-phase finding tables in `docs/phase1-libobjc2-findings.md` … `docs/phase5-ui-layer-findings.md` are the authoritative reference for what was found and what was fixed.
 
-| Severity | Found | Fixed | Examples |
-|----------|:-----:|:-----:|---------|
-| Critical | 22 | 22 | NSSecureCoding bypass, TLS verify off, use-after-free, NULL derefs |
-| High | 46 | 46 | Deadlocks, race conditions, buffer overflows, broken APIs |
-| Medium | 61 | 61 | Thread safety gaps, missing validation, robustness issues |
-| Low | 14 | 14 | Documentation, minor optimizations |
-| Bugs | 10 | 10 | Swapped args, wrong variables, inverted conditions |
+**Read first** before digging into specific findings:
+- `docs/reviewer-feedback-2026-04-13.md` — libobjc2 maintainer review and the reverts that followed.
+- `instrumentation/experiment-log.md` — every experiment tried, including those reverted.
 
-**12 performance optimizations applied:**
+### Retained correctness fixes — highlights
 
-| Optimization | Expected Impact |
-|-------------|----------------|
-| Weak ref lock striping (64-way) | 5-8x concurrent throughput |
-| NSCache O(1) LRU linked list | 1000x+ for large caches |
-| CFArray geometric growth | O(n) vs O(n^2) appends |
-| X11 expose event coalescing | Batch redraws vs per-event |
-| JSON parser buffer 64->4096 | 64x fewer buffer refills |
-| DPSimage conversion caching | Avoid repeat per-pixel conversion |
-| Live resize 60fps throttle | Smooth window resizing |
-| NSView dirty region list (8 rects) | Reduced overdraw |
-| CFRunLoop stack buffers | Eliminated per-iteration malloc |
-| CALayer presentation persistence | Eliminated per-frame alloc/dealloc |
-| Theme tile composite cache | 9 composites -> 1 per control |
-| Cache line alignment | Eliminated false sharing |
+| Severity | Area | Example |
+|---|---|---|
+| Critical | libs-base | NSSecureCoding class whitelist now enforced on deserialization |
+| Critical | libs-base | TLS server cert verification on by default |
+| Critical | libs-corebase | CFSocket sendto() argument order fix (was silently dropping all sends) |
+| Critical | libs-quartzcore | CATransaction global stack lock; CAGLTexture alpha=0 divide-by-zero |
+| Critical | libs-opal | CGContext fill_path NULL deref; TIFF destination init condition; dash-buffer malloc(bytes→doubles) |
+| Critical | libs-gui | GSLayoutManager, NSView subviews, NSApplication event dispatch — thread confinement |
+| High | libobjc2 | RB-1 exception rethrow save-before-free; TS-2 selector table TOCTOU re-check; TS-7 property dual-lock deadlock |
+| High | libs-base | JSON parser recursion depth limit; binary plist integer overflow |
+| High | libobjc2 | RB-7 `protocol_copyPropertyList2` — `*outCount = 0` on all early returns (reviewer fix-the-fix) |
+
+### Retained performance changes
+
+| Change | Status |
+|---|---|
+| Weak-ref lock 64-way striping (PF-6) | Retained. Magnitude claim qualified: only matters for objects with weak refs — see experiment log. |
+| NSCache O(1) LRU linked list | Retained. |
+| CFArray geometric growth | Retained. |
+| NSRunLoop timer min-heap | Retained. |
+| X11 expose event coalescing | Retained. |
+| JSON parser buffer 64→4096 | Retained. |
+| DPSimage conversion caching | Retained. |
+| NSView dirty region list | Retained. |
+| CFRunLoop stack buffers | Retained. |
+| CALayer presentation persistence | Retained. |
+| Theme tile composite cache | Retained. |
+| Autorelease pool page recycling (B6) | Retained. |
+| NSZone compatibility shim (B7) | Retained. |
+| `__atomic_load_n` cleanup (PF-7) | Retained **as a readability cleanup only**; reviewer confirmed it compiles to the same machine code as `__sync_fetch_and_add(x,0)` under SEQ_CST. Not a perf win. |
+
+### Reverted experiments (do not re-open without reading the log)
+
+| Experiment | Reason |
+|---|---|
+| Per-class method cache counter (B1) | Reviewer: global counter is intentional; method replacement is rare in real workloads. Microbenchmark was contrived. |
+| GSInlineDict (B5.1) | Measured **+14% regression** at N=4 vs baseline. |
+| GSTinyString factory | Tagged-pointer branch was slower than `GSCString` in head-to-head measurement. Factory disabled; class remains dormant. |
+| RB-2 NULL selector guard on dispatch hot path | Reviewer: dead defensive check on the hottest path in the runtime. Compiler-generated code never passes NULL. |
+| TS-3 LockGuards on selector introspection | Reviewer: the unsynchronized read of a monotonic counter is intentional. Locking regressed introspection. (Other TS-3 changes retained.) |
+| TS-14 bounded `cleanupPools` loop | Reviewer: recursive form is correct for the TLS-reallocation corner case; the loop only re-checks the original pointer. |
+
+Full rationale for each: `instrumentation/experiment-log.md`.
 
 ## Repository Structure
 
@@ -139,7 +164,7 @@ fix(TS-2): hold lock for entire check-and-register to prevent TOCTOU
 perf: stripe weak reference lock 64-way for 5-8x concurrent throughput
 ```
 
-Total: 38 fix/perf commits across 7 repos + 5 instrumentation commits = 43 total.
+Commit log per fork is authoritative — `git log --oneline` in each repo shows the retained state.
 
 ## Key Security Fixes
 
@@ -174,13 +199,9 @@ All fixes are merged to `master` on the DTW-Thalion GitHub forks:
 
 ## Test Results
 
-**32/32 regression tests pass** on MSYS2 ucrt64 with patched libraries installed:
+**34/34 regression tests pass** on MSYS2 ucrt64 with the retained-state patched libraries installed (libobjc2, gnustep-base, gnustep-gui, gnustep-back). Unpatched baseline: 18/32 passing.
 
-- Unpatched baseline: 18/32 passing
-- Patched (all fixes applied): 32/32 passing (100%)
-- Patched libraries built and installed: libobjc2, gnustep-base, gnustep-gui, gnustep-back
-
-### Benchmark Results (patched vs unpatched)
+### Benchmark Results (patched vs unpatched, retained state)
 
 | Benchmark | Improvement |
 |-----------|-------------|
@@ -188,6 +209,9 @@ All fixes are merged to `master` on the DTW-Thalion GitHub forks:
 | message dispatch | +12-18% |
 | array operations | +46-55% |
 | NSCache set | +25% |
+| autorelease pool churn (B6) | measured improvement, no regressions |
+
+Historical baselines from reverted experiments (B1, B5.1, GSTinyString) live in `instrumentation/benchmarks/results/baseline_pre_*.jsonl` as an audit trail — they are not the current state.
 
 ## Getting Started
 
@@ -209,4 +233,4 @@ git clone https://github.com/DTW-Thalion/libs-base.git
 
 ## Date
 
-Audit performed: 2026-04-12
+Audit performed: 2026-04-13. Post-review rationalization: 2026-04-13.

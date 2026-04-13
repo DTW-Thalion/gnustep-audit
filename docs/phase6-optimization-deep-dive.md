@@ -1,7 +1,7 @@
 # Phase 6: Runtime Optimization Deep Dive
 
 **Date:** 2026-04-12
-**Status:** Sprint 1-3 complete (15/15 tasks). Task 9 (NSRunLoop timer optimization) was deferred at audit close and is now tracked by the follow-up plan at `docs/superpowers/plans/2026-04-12-phase6-followup.md`, which also covers the Sprint 4/5 architectural items below as design spikes. PF-7 (`__sync_fetch_and_add` → `__atomic_load_n`) fully closed by libobjc2 commit `834c978`.
+**Status:** Sprint 1-3 complete (15/15 tasks). Task 9 (NSRunLoop timer optimization) was deferred at audit close and is now tracked by the follow-up plan at `docs/superpowers/plans/2026-04-12-phase6-followup.md`. **Post-review reclassifications:** PF-7 (`__sync_fetch_and_add` → `__atomic_load_n`) is retained as a readability cleanup only — reviewer confirmed both forms compile to identical machine code under SEQ_CST, so it is **not** a perf win. PF-4 (per-class method cache counter, tracked as B1) was **reverted** after reviewer rejection. PF-6 (weak-ref lock striping) retained but the "5-8×" magnitude claim is microbenchmark-only. Full trajectory: `../instrumentation/experiment-log.md` and `reviewer-feedback-2026-04-13.md`.
 **Scope:** Cross-cutting performance optimization across all 7 repos
 **Informed by:** Findings from Phases 1-5
 

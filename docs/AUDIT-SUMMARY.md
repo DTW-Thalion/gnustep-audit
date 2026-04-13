@@ -1,10 +1,13 @@
 # GNUstep Code Audit — Master Summary
 
-**Date:** 2026-04-12
-**Status:** COMPLETE — All 150 findings fixed, 12 performance optimizations applied, 64 test/benchmark files created (51 tests + 13 benchmarks)
-**Scope:** 7 repos, 2,686 source files, bottom-up audit
-**Focus:** Robustness, Thread Safety, Performance Optimization
-**Commits:** 38 fix/perf commits across 7 repos + 5 instrumentation commits = 43 total
+**Date:** 2026-04-13 (audit), 2026-04-13 (post-review rationalization)
+**Status:** COMPLETE — retained changes validated against 34/34 regression tests on MSYS2 ucrt64.
+**Scope:** 7 repos, 2,686 source files, bottom-up audit.
+**Focus:** Robustness, Thread Safety, Performance Optimization.
+
+**Read first:**
+- `docs/reviewer-feedback-2026-04-13.md` — libobjc2 maintainer review of committed findings, per-finding verdicts, and the reverts that followed.
+- `instrumentation/experiment-log.md` — every experiment attempted, including those reverted (B1, B5.1, GSTinyString, RB-2, TS-14, the LockGuard portion of TS-3). Counts below describe the **retained** state of the trees, not the total count of things tried.
 
 ---
 
@@ -19,6 +22,8 @@
 | **Total** | **31** | **26** | **20** | **30** | **36** | **143** |
 
 Plus **7 confirmed bugs** in libs-corebase and **3 bugs** in libs-opal/libs-quartzcore.
+
+**Post-review reverts (subtracted from the totals above):** RB-2 NULL selector guard (dead defensive check on dispatch hot path), the three LockGuard additions from TS-3 (intentional unsynchronized reads on a monotonic counter), and TS-14 bounded `cleanupPools` loop (recursive form is correct for the TLS-reallocation corner case). See `instrumentation/experiment-log.md` for rationale. The remaining ~140 findings are the retained state of the trees.
 
 ---
 
@@ -109,7 +114,7 @@ Plus **7 confirmed bugs** in libs-corebase and **3 bugs** in libs-opal/libs-quar
 18. Fix GSMutexDestroy typo (pthraed → pthread)
 
 ### Medium-term (Performance Quick Wins)
-19. Replace `__sync_fetch_and_add(x,0)` with `__atomic_load_n` in arc.mm
+19. Replace `__sync_fetch_and_add(x,0)` with `__atomic_load_n` in arc.mm *(retained as a readability cleanup; both forms emit identical machine code under SEQ_CST, so this is **not** a perf win — see `instrumentation/experiment-log.md` § PF-7)*
 20. Re-enable X11 expose event coalescing
 21. Change CFArray growth from +16 to *2
 22. Increase JSON parser buffer from 64 to 4096
@@ -117,20 +122,20 @@ Plus **7 confirmed bugs** in libs-corebase and **3 bugs** in libs-opal/libs-quar
 24. Fix CFPropertyList deep copy mutable array bug
 
 ### Long-term (Architecture)
-25. Stripe weak reference lock (64-way)
+25. Stripe weak reference lock (64-way) *(retained; "5-8× concurrent throughput" was a contrived microbenchmark result — real workloads only hit this lock on objects carrying weak refs — see `instrumentation/experiment-log.md` § PF-6)*
 26. Rewrite NSCache with O(1) linked list
 27. Replace NSRunLoop timer array with min-heap
 28. Implement dirty region list in NSView
 29. Cache DPSimage pixel format conversions
-30. Implement tagged-pointer NSString
-31. Per-class method cache generation counters
+30. Implement tagged-pointer NSString *(**GSTinyString factory disabled**; the tagged-pointer branch was slower than `GSCString` in head-to-head measurement — see `instrumentation/experiment-log.md` § GSTinyString)*
+31. Per-class method cache generation counters *(**REVERTED** — reviewer confirmed the global counter was an intentional design choice; method replacement is infrequent in real workloads — see `instrumentation/experiment-log.md` § B1)*
 32. Bootstrap libs-back test suite
 
 ---
 
 ## Completion Status
 
-**All 150 findings fixed. All action items above have been implemented.**
+**Retained state after reviewer feedback and post-hoc rationalization.** Three findings were reverted on reviewer advice (RB-2, TS-14, the LockGuard portion of TS-3). Three performance experiments were reverted after measurement did not justify them (B1 per-class cache counter, B5.1 GSInlineDict, GSTinyString factory). B6 (autorelease pool page recycling) and B7 (NSZone shim) were added post-audit and retained. Full trajectory: `instrumentation/experiment-log.md`.
 
 ### GitHub Repositories (all merged to master)
 
@@ -145,13 +150,12 @@ Plus **7 confirmed bugs** in libs-corebase and **3 bugs** in libs-opal/libs-quar
 | libs-gui | https://github.com/DTW-Thalion/libs-gui | 5 |
 | libs-back | https://github.com/DTW-Thalion/libs-back | 4 |
 
-**Total: 38 fix/perf commits across 7 repos.**
+**Retained fix/perf commits across 7 repos** (post-revert); commit log is authoritative — run `git log --oneline` in each fork.
 
 ### Regression Test Results
 
-- **32/32 tests pass** (0 failures) on MSYS2 ucrt64 with patched libraries
-- Unpatched baseline: 18/32 passing
-- Test progression: 18/32 -> 32/32 = 100%
+- **34/34 tests pass** (0 failures) on MSYS2 ucrt64 with patched libraries — this is the count after the retained-state sweep.
+- Unpatched baseline: 18/32 passing.
 - Patched libraries built and installed: libobjc2, gnustep-base, gnustep-gui, gnustep-back
 
 ### Benchmark Results (patched vs unpatched)
