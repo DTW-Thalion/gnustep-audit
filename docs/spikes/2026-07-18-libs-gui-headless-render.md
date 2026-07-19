@@ -1,29 +1,26 @@
 
-## 0b: CI lane result (Xvfb required)
+## 0b: candidate Tier A finding + headless-simulation method
 
-Branch `ci/headless-gui-tests` on DTW-Thalion/libs-gui adds a `linux-headless`
-job to `.github/workflows/main.yml`: it mirrors the clang gnustep-2.0 leg,
-installs the X11 development libraries plus `xvfb`, builds and installs
-gnustep/libs-back with `--enable-graphics=cairo`, and runs the suite with
-`xvfb-run -a make check`.
+Surfaced while making the reference geometry test display-independent:
 
-Two facts settled by running it on a real GitHub runner (runs 29686801533,
-29687086700, 29688745608):
+`-[NSView convertRect:toView:]` (and `convertRect:fromView:`) return the rect
+unchanged when the view has no window. Source/NSView.m guards the transform with
+`if (aView == self || _window == nil || (aView != nil && [aView window] == nil))
+return aRect;`, checking the raw `_window` ivar. So a windowless view hierarchy
+gets a no-op conversion. `convertPoint:toView:`/`fromView:` have no such guard
+(they apply the hierarchy matrix, which is a correct translation whenever the
+view has a superview), so the geometry reference test uses convertPoint. Whether
+the convertRect window requirement diverges from AppKit needs a macOS oracle
+before filing; recorded here as a candidate.
 
-1. libs-back builds an x11 server layer even for the cairo graphics backend, so
-   `libxt-dev libxmu-dev libxft-dev libxrandr-dev libxfixes-dev libxcursor-dev`
-   are required or `./configure` fails with "libXt not found - required for
-   building x11 server".
-2. A display is required. With no display the suite runs but every set that
-   reaches the window server aborts with `NSWindowServerCommunicationException:
-   Unable to retrieve list of screens from window server` (13 sets in the pure
-   no-display run, including the NSView convertRect/frame_bounds/frame_rotation/
-   bounds_scale/autoresize/scrollRectToVisible group). The earlier local finding
-   that these ran with `DISPLAY`/`WAYLAND_DISPLAY` unset was a WSLg artifact:
-   WSLg keeps a reachable display even with those variables unset. Under
-   `xvfb-run` all 13 run and pass.
-
-Result under xvfb (run 29688745608): 2481 passed, 0 skipped. Four pre-existing
+Headless-simulation method (local): `env -u DISPLAY -u WAYLAND_DISPLAY` does NOT
+produce a display-less condition under WSLg. libwayland's wl_display_connect(NULL)
+falls back to the default socket wayland-0 in $XDG_RUNTIME_DIR, which is always
+live under WSLg, so the backend still connects and window tests still pass. A
+genuine no-display condition needs DISPLAY set to a nonexistent server (e.g.
+:99) and XDG_RUNTIME_DIR pointed at an empty directory. Under that condition the
+windowless geometry test passes 3/3 and the rendering test skips cleanly.
+pped. Four pre-existing
 failures remain, unrelated to the backend or display and previously hidden
 because CI skipped every backend test:
 
