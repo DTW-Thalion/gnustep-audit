@@ -214,7 +214,7 @@ directory on disk (`GNUmakefile`, `obj/pathitems*`) is untracked build residue
 from a prior session, not part of this commit's tree. `editable.m` exists on
 `origin/master` (added in `237f4fdd0`, "Fix: NSPathControl -isEditable
 /-setEditable:"), 108 commits ahead of the checked-out HEAD. Did not pull to
-fetch it — that would move the baseline commit out from under an otherwise
+fetch it: that would move the baseline commit out from under an otherwise
 unrelated task, and the question Step 1 exists to answer doesn't need that
 specific file.
 
@@ -276,7 +276,7 @@ tree, unrelated to headless-vs-display:
   `gui/NSTextFieldCell/attributes.m`.
 - 15 failed tests across `gui/NSDatePickerCell/{clamping,defaultColors,
   defaultDateValue,defaultElements}.m` and `gui/NSLevelIndicatorCell/{initStyle,
-  levelIndicatorStyle,tickMarkValue}.m` — cell-default/clamping assertions, not
+  levelIndicatorStyle,tickMarkValue}.m`: cell-default/clamping assertions, not
   backend-related.
 - 1 failed set: `gui/NSDataLink/basic.m`.
 - 2 "Dashed hopes" tied to the aborted files above.
