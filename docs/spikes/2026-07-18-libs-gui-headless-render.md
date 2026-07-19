@@ -39,7 +39,40 @@ Probes run with `export LD_LIBRARY_PATH=/usr/local/lib`.
 
 ## Probe A — offscreen bitmap render
 
-_(pending)_
+Source: `~/gnustep-reaudit/.spike-headless-gui/probeA_bitmap.m`. Path:
+`sharedApplication` + `NSImage lockFocus` + `NSRectFill` +
+`initWithFocusedViewRect:` + PNG representation.
+
+Compiled: **YES**, exit 0, no warnings/errors. Binary 53640 bytes.
+
+Run command:
+```
+cd ~/gnustep-reaudit/.spike-headless-gui; export LD_LIBRARY_PATH=/usr/local/lib
+# has-display / display-unset:
+./probeA
+env -u DISPLAY -u WAYLAND_DISPLAY ./probeA
+# xvfb:
+Xvfb :99 -screen 0 1024x768x24 >/dev/null 2>&1 & sleep 1; DISPLAY=:99 ./probeA
+```
+
+Verbatim marker output:
+
+| Environment | Marker |
+|---|---|
+| has-display (`DISPLAY=:0`, wayland) | `BITMAP_OK bytes=91` (rc=0) |
+| display-unset (`env -u DISPLAY -u WAYLAND_DISPLAY`) | `BITMAP_OK bytes=91` (rc=0) |
+| Xvfb (`DISPLAY=:99`) | `BITMAP_OK bytes=91` (rc=0) |
+
+Output file `~/probeA.png` validated: `PNG image data, 20 x 20, 8-bit/color
+RGBA, non-interlaced` (91 bytes; solid-red fill compresses to a tiny PNG).
+
+**Finding: the offscreen bitmap path works display-less.** This is contrary to
+the plan's hypothesised "likely-informative" outcome (that the bitmap path
+would FAIL display-unset because the backend needs an X/Wayland connection at
+init). With the cairo backend, `NSImage lockFocus` renders into an in-memory
+cairo image surface and requires no display server. So Tier C's bitmap lane is
+headless-capable, not Xvfb-only. (Note: pixel checksums are not used for text
+per the plan's determinism rule; here the content is a solid fill.)
 
 ## Probe B — draw-op stream via `dataWithEPSInsideRect:`
 
