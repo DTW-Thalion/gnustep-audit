@@ -126,4 +126,35 @@ GSStreamContext/DPS approach that bypasses `NSPrintOperation`.
 
 ## Probe C — window + event injection under Xvfb
 
-_(pending)_
+Source: `~/gnustep-reaudit/.spike-headless-gui/probeC_event.m`.
+`sharedApplication` + borderless `NSWindow` + `orderFront:` + synthetic
+`NSEventTypeLeftMouseDown` via `mouseEventWithType:…` + `contentView hitTest:`.
+
+Compiled: **YES**, exit 0, no warnings/errors. Binary 51648 bytes.
+
+Run command (Xvfb, primary):
+```
+cd ~/gnustep-reaudit/.spike-headless-gui; export LD_LIBRARY_PATH=/usr/local/lib
+Xvfb :99 -screen 0 1024x768x24 >/dev/null 2>&1 & sleep 1
+DISPLAY=:99 timeout 45 ./probeC
+# also tried display-unset:
+env -u DISPLAY -u WAYLAND_DISPLAY timeout 30 ./probeC
+```
+
+Verbatim marker output:
+
+| Environment | Marker |
+|---|---|
+| Xvfb (`DISPLAY=:99`) | `WINDOW_OK hit=yes event=yes` (rc=0) |
+| display-unset (`env -u DISPLAY -u WAYLAND_DISPLAY`) | `WINDOW_OK hit=yes event=yes` (rc=0) |
+
+**Finding: window creation, `orderFront:`, synthetic `NSEvent` construction,
+and `hitTest:` all succeed under Xvfb — and also with no display at all.**
+Hit-testing returns a non-nil view (`hit=yes`), so it resolves from view
+geometry and does not require a mapped/on-screen window. The event object is
+constructed successfully (`event=yes`). Note the probe constructs and hit-tests
+but does not dispatch the event through the run loop / `sendEvent:`; driving a
+full event through `-[NSApplication sendEvent:]` and observing an action is a
+larger step this probe does not cover. Within its scope, the Tier B primitives
+(real window + synthetic event + hit-test) are feasible in the Xvfb lane, and
+the geometry parts even run display-less.
