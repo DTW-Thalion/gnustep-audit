@@ -4,7 +4,7 @@
 
 **Goal:** Give libs-gui a headless-backend CI lane so its test suite actually *runs* (not SKIPs) in CI, plus the shared conveniences and a reference NSView test that the heavy-class Tier A/B suites will build on — then package it for Fred's buy-in.
 
-**Architecture:** The spike proved the cairo backend renders offscreen with no display, so `[NSApplication sharedApplication]` succeeds headless and the existing `START_SET`/`SKIP` guard no longer fires — tests run instead of skipping. Phase 0b installs a cairo backend in a CI job with no display, runs the gui `make check`, and adds a small reference test and a geometry-assertion helper. Tier C render-regression is out of scope here (deferred to 0c: its capture mechanism is unresolved).
+**Architecture:** The spike proved the cairo backend renders offscreen with no display, so `[NSApplication sharedApplication]` succeeds headless and the existing `START_SET`/`SKIP` guard no longer fires — tests run instead of skipping. Phase 0b installs a cairo backend in a CI job with no display, runs the gui `make check`, and adds reference tests for all three tiers plus their shared helpers. The Tier C capture mechanism was researched (`docs/spikes/2026-07-18-libs-gui-tierc-capture.md`): the PostScript op-stream is unavailable headless in this build (dead via NSPrintOperation, no PS delegation via attributes, and `GSStreamContext` is an incomplete standalone context), so Tier C uses the proven offscreen-bitmap path with pixel-colour assertions at known coordinates on non-text drawing.
 
 **Tech Stack:** GNUstep (base 1.31, gui 0.32, back-032 cairo) at `/usr/local`; clang; libobjc2 4.6; GNUstep `Testing.h`/`ObjectTesting.h` test framework; GitHub Actions; WSL Ubuntu for local proof.
 
@@ -204,26 +204,102 @@ Do not post. The plan ends here for the implementer; Todd reviews the draft and 
 
 ---
 
-### Task 5 (research, feeds 0c): Tier C capture mechanism probe
+### Task 5: Tier C render-regression reference test
+
+The Tier C capture mechanism was researched and decided: the PostScript op-stream
+is unavailable headless (dead via NSPrintOperation; no PS delegation through
+`graphicsContextWithAttributes:`; `GSStreamContext` is an incomplete standalone
+context that emits nothing and raises on `flushGraphics`). Tier C uses the proven
+offscreen render path — an offscreen `NSWindow` + `[view lockFocus]` +
+`initWithFocusedViewRect:` + `-[NSBitmapImageRep colorAtX:y:]` — verified working
+display-less and under Xvfb (`docs/spikes/2026-07-18-libs-gui-tierc-capture.md`).
+This task adds the reference Tier C test that later heavy-class suites copy.
 
 **Files:**
-- Create: `~/gnustep-reaudit/.spike-headless-gui/probeD_dps.m`
-- Create: `C:\Users\toddw\source\repos\gnustep-audit\docs\spikes\2026-07-18-libs-gui-tierc-capture.md`
+- Create: `~/gnustep-reaudit/libs-gui/Tests/gui/NSView/rendering.m`
 
 **Interfaces:**
-- Produces: a decision for the 0c plan — op-stream capture (font-robust) vs offscreen-bitmap (proven, text-fragile).
+- Consumes: the headless backend.
+- Produces: the Tier C pattern — offscreen render, pixel-colour assertions at known
+  coordinates for deterministic (non-text) drawing.
 
-- [ ] **Step 1: Probe an op-stream capture that bypasses NSPrintOperation**
+- [ ] **Step 1: Write the reference test** (this exact code was verified with a standalone probe: centre pixel 1.00/0.00/0.00 display-less and under Xvfb)
 
-Write a probe that creates a stream/DPS context on a memory buffer, makes it current, renders a `Box : NSView` (solid fill) via `-[NSView displayRectIgnoringOpacity:inContext:]`, and inspects the captured bytes. Try `NSDPSContext` with an output stream first; if that class/path is unavailable headless, record it. Run display-unset with a timeout (the EPS path hung — guard against it):
+```objc
+#import "Testing.h"
+#import <Foundation/NSGeometry.h>
+#import <AppKit/NSApplication.h>
+#import <AppKit/NSWindow.h>
+#import <AppKit/NSView.h>
+#import <AppKit/NSBitmapImageRep.h>
+#import <AppKit/NSColor.h>
+#import <AppKit/NSGraphics.h>
+
+@interface Swatch : NSView
+@end
+@implementation Swatch
+- (void) drawRect: (NSRect)r
+{
+  [[NSColor redColor] set];
+  NSRectFill([self bounds]);
+}
+@end
+
+int main(int argc, const char **argv)
+{
+  CREATE_AUTORELEASE_POOL(arp);
+  START_SET("NSView rendering")
+
+  NS_DURING
+    [NSApplication sharedApplication];
+  NS_HANDLER
+    if ([[localException name] isEqualToString: NSInternalInconsistencyException])
+      SKIP("It looks like GNUstep backend is not yet installed")
+  NS_ENDHANDLER
+
+  NSWindow *w = AUTORELEASE([[NSWindow alloc]
+    initWithContentRect: NSMakeRect(0, 0, 16, 16)
+              styleMask: NSWindowStyleMaskBorderless
+                backing: NSBackingStoreBuffered
+                  defer: NO]);
+  Swatch *v = AUTORELEASE([[Swatch alloc] initWithFrame: NSMakeRect(0, 0, 16, 16)]);
+  [w setContentView: v];
+
+  [v lockFocus];
+  [v drawRect: [v bounds]];
+  NSBitmapImageRep *rep = AUTORELEASE([[NSBitmapImageRep alloc]
+    initWithFocusedViewRect: NSMakeRect(0, 0, 16, 16)]);
+  [v unlockFocus];
+
+  PASS(rep != nil && [rep pixelsWide] == 16 && [rep pixelsHigh] == 16,
+    "offscreen render produced a 16x16 bitmap");
+
+  NSColor *c = [[rep colorAtX: 8 y: 8]
+    colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+  PASS(c != nil && [c redComponent] > 0.9
+    && [c greenComponent] < 0.1 && [c blueComponent] < 0.1,
+    "centre pixel of a red-fill view is red");
+
+  END_SET("NSView rendering")
+  DESTROY(arp);
+  return 0;
+}
 ```
-wsl -d Ubuntu -- bash -lc 'cd ~/gnustep-reaudit/.spike-headless-gui && . /usr/local/share/GNUstep/Makefiles/GNUstep.sh && clang probeD_dps.m -o probeD -L/usr/local/lib $(gnustep-config --objc-flags) $(gnustep-config --gui-libs) -lobjc 2>&1 | tail -3 && export LD_LIBRARY_PATH=/usr/local/lib && env -u DISPLAY -u WAYLAND_DISPLAY timeout 20 ./probeD; echo rc=$?'
+
+- [ ] **Step 2: Run headless (must PASS not SKIP)**
+
+Run:
 ```
-Expected: either a captured op-stream (record whether it is stable across two runs and contains recognisable ops) or a clean failure (record it). Do not substitute APIs silently.
+wsl -d Ubuntu -- bash -lc 'cd ~/gnustep-reaudit/libs-gui/Tests && . /usr/local/share/GNUstep/Makefiles/GNUstep.sh && export LD_LIBRARY_PATH=/home/toddw/gnustep-reaudit/libs-gui/Source/obj:/usr/local/lib ADDITIONAL_LDFLAGS=-L/usr/local/lib && env -u DISPLAY -u WAYLAND_DISPLAY gnustep-tests gui/NSView/rendering.m 2>&1 | grep -iE "passed|skipped|failed"'
+```
+Expected: `2 Passed tests`, no `Skipped`.
 
-- [ ] **Step 2: Record the Tier C decision**
+- [ ] **Step 3: Commit on the tests branch**
 
-Write `docs/spikes/2026-07-18-libs-gui-tierc-capture.md`: op-stream viable (→ 0c builds the op-stream capture+compare helper) or not (→ 0c builds offscreen-bitmap regression scoped to non-text regions, with Tier A geometry carrying text correctness). Commit to `gnustep-audit` as Todd White.
+```
+wsl -d Ubuntu -- bash -lc 'cd ~/gnustep-reaudit/libs-gui && git add Tests/gui/NSView/rendering.m && git -c user.name="Todd White" -c user.email="todd.white@thalion.global" commit -m "tests: add NSView rendering tests"'
+```
+Keep on the `tests/nsview-geometry` branch with Task 3 (both are NSView Tests).
 
 ---
 
@@ -233,5 +309,5 @@ Write `docs/spikes/2026-07-18-libs-gui-tierc-capture.md`: op-stream viable (→ 
 - The headless CI job is on `ci/headless-gui-tests` and validated.
 - A reference NSView geometry test exists, passes headless, and models the Tier A pattern (Task 3).
 - The Fred proposal is drafted for Todd's review, not posted (Task 4).
-- The Tier C capture mechanism is decided for the 0c plan (Task 5).
-- Everything upstream-bound follows the contribution discipline. Deferred: Tier C helper + heavy-class suites (0c and Phase 1).
+- The Tier C mechanism is decided (offscreen bitmap; op-stream researched and rejected) and a reference NSView rendering test passes headless (Task 5).
+- Everything upstream-bound follows the contribution discipline. Deferred: heavy-class suites (Phase 1).
