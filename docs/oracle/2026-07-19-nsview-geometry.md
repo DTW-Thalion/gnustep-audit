@@ -199,3 +199,33 @@ defined anywhere in `Source/`.
 |---|---|---|---|
 | frameBounds.centerScanRect | `{{10, 11}, {20, 21}}` | `{{10, 11}, {21, 20}}` | `-[NSView centerScanRect:]` |
 | frameBounds.backingAlignedRect | `{{10, 11}, {21, 20}}` | method not implemented | `-[NSView backingAlignedRect:options:]` |
+
+Confirmed by running `Tests/gui/NSView/visibleClip.m` (windowed section, live
+run) plus a scratch probe covering the windowless section's excluded cases
+on the same tree. `-[NSView visibleRect]` on a view with no window returns
+the view's own bounds in GNUstep instead of AppKit's unbounded sentinel rect
+for a view with no clip context at all. Confirmed for a fully-visible
+subview, a partially-clipped subview, and a nested subview under a smaller
+superview; GNUstep does not intersect against any ancestor's bounds in the
+windowless path either (`partiallyClipped` comes back unclipped at 50x50
+rather than reduced to the overlap with its 100x100 superview), unlike the
+windowed path which does perform that intersection. Also covers the
+single-view, no-superview case in the now-deleted `NSView_visibleRect.m`,
+whose one assertion was marked `testHopeful` and happened to pass only
+because GNUstep's windowless answer trivially equals the view's own frame.
+Routed to Task 8.
+
+| probe id | macOS value | GNUstep value | source method |
+|---|---|---|---|
+| visibleRect.fullyVisible | unbounded sentinel (see table above) | `{{0, 0}, {50, 50}}` | `-[NSView visibleRect]` |
+| visibleRect.partiallyClipped | unbounded sentinel (see table above) | `{{0, 0}, {50, 50}}` | `-[NSView visibleRect]` |
+| visibleRect.nested | unbounded sentinel (see table above) | `{{0, 0}, {50, 50}}` | `-[NSView visibleRect]` |
+
+`visibleRect.windowed.*` is not carried into this table: GNUstep's windowed
+values (`{{0,0},{50,50}}`, `{{0,0},{20,20}}`, `{{0,0},{50,50}}` for
+`fullyVisible`/`partiallyClipped`/`nested` respectively) also disagree with
+the AppKit numbers recorded above, but those AppKit numbers are themselves
+provisional (a window created and never ordered front, not resolved against
+a genuinely on-screen window), so this is left as an open gap rather than a
+confirmed divergence. Needs an on-screen-window oracle run to settle either
+side.
