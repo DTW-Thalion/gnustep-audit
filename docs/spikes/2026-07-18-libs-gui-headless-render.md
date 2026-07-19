@@ -158,3 +158,38 @@ full event through `-[NSApplication sendEvent:]` and observing an action is a
 larger step this probe does not cover. Within its scope, the Tier B primitives
 (real window + synthetic event + hit-test) are feasible in the Xvfb lane, and
 the geometry parts even run display-less.
+
+## Decision — tier to mechanism, and verdict
+
+Verified independently after the sweep (re-ran each probe display-unset): Probe A
+`BITMAP_OK`, Probe C `WINDOW_OK hit=yes event=yes`, Probe B no marker.
+
+Verdict: **GO (headless-first), and broader than the spec assumed.** The cairo
+backend renders into in-memory surfaces with no display, so offscreen bitmaps,
+window creation, hit-testing, and synthetic event construction all work
+display-less. Xvfb is not needed for these.
+
+| Tier | Mechanism | Environment | Evidence |
+|---|---|---|---|
+| A — geometry / state / coding | direct API; offscreen context where one is needed | display-less | Probe A, C |
+| B — window, hit-test, geometry | headless cairo backend | display-less | Probe C |
+| B — full event dispatch via `sendEvent:` | Xvfb lane (contingency) | Xvfb | not proven; Probe C covered construction + hit-test only |
+| C — render regression | offscreen bitmap (Probe A); comparison strategy resolved in the harness plan | display-less | Probe A |
+
+Overturned assumption: the planned Tier C mechanism — draw-op stream via
+`dataWithEPSInsideRect:` — is dead (`NSPrintOperation runOperation` hangs
+display-less, exits 0 without data with a display). Shelved.
+
+Residual (bounded, for the harness plan): Tier C's comparison strategy is the one
+open mechanism. Harness plan task 1 probes a font-robust op capture that bypasses
+the print pipeline — a `GSStreamContext` / `NSDPSContext` on a memory stream, set
+current, view rendered via `displayRectIgnoringOpacity:inContext:`. If that yields
+a stable PostScript op-stream headless, use it; otherwise fall back to offscreen
+bitmap regression scoped to solid/shape regions (glyph pixels excluded for
+freetype/AA variance), with per-environment baselines, and let Tier A geometry
+(glyph and line rects) carry text-layout correctness instead of glyph pixels.
+
+Xvfb: demoted from "required for Tier B" to a contingency lane — for full
+event-loop dispatch, and as a fallback if a truly display-less CI runner behaves
+differently from WSLg display-unset. The harness's first real CI run is the
+authoritative confirmation.

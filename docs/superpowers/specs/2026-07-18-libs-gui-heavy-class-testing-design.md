@@ -143,8 +143,12 @@ platforms and environments by design.
 
 ## Constraints and risks
 
-- **Gating unknown**: headless backend init (see Phase-0 spike). Architecture
-  forks on the result.
+- **Gating unknown — RESOLVED (spike 2026-07-18):** the cairo backend renders
+  offscreen headless — bitmaps, window creation, hit-testing, and synthetic event
+  construction all work with no display. Headless-first is GO, broader than
+  assumed; Xvfb is demoted to a contingency lane (full event-loop dispatch, and a
+  fallback if truly display-less CI differs from WSLg). See
+  `docs/spikes/2026-07-18-libs-gui-headless-render.md`.
 - **Font-metric variance** across environments → exclude font-derived sizes from
   the Apple audit; the draw-op stream avoids pixel/font fragility for shapes.
 - **Fred's review capacity** is limited (he is flooded). Keep PRs small and
@@ -158,10 +162,14 @@ platforms and environments by design.
 
 ## Open questions (resolve during spec review / Phase 0)
 
-- Exact headless mechanism: cairo image surface vs a dedicated headless server
-  bundle — the spike decides.
-- Draw-op capture format: GSStreamContext PostScript stream vs a custom GSGState
-  recorder — which is more stable and assertable.
+- Exact headless mechanism — RESOLVED: cairo in-memory surfaces; no display and
+  no dedicated headless bundle are needed.
+- Tier C capture format — REVISED: the `dataWithEPSInsideRect:` op-stream is dead
+  (delegates to `NSPrintOperation runOperation`, which hangs display-less). The
+  harness plan first probes a `GSStreamContext`/`NSDPSContext`-on-memory-stream
+  capture that bypasses the print pipeline; failing that, offscreen-bitmap
+  regression scoped to non-text (solid/shape) regions, with Tier A geometry
+  carrying text-layout correctness.
 - Whether Fred wants the new CI lane in gnustep/libs-gui CI itself or as an
   opt-in job.
 
