@@ -143,12 +143,15 @@ platforms and environments by design.
 
 ## Constraints and risks
 
-- **Gating unknown — RESOLVED (spike 2026-07-18):** the cairo backend renders
-  offscreen headless — bitmaps, window creation, hit-testing, and synthetic event
-  construction all work with no display. Headless-first is GO, broader than
-  assumed; Xvfb is demoted to a contingency lane (full event-loop dispatch, and a
-  fallback if truly display-less CI differs from WSLg). See
-  `docs/spikes/2026-07-18-libs-gui-headless-render.md`.
+- **Gating unknown — CORRECTED 2026-07-19 by the real CI run:** the Phase 0a
+  spike conclusion above was a WSLg artifact. On a genuinely display-less runner
+  the suite runs (0 skip) but any window-server operation (window creation, screen
+  list) raises `NSWindowServerCommunicationException`. Xvfb is REQUIRED for
+  window-touching tests, not a contingency; only windowless view math is
+  display-independent, and only through APIs without a window guard
+  (`convertPoint:` yes, `convertRect:` no). The #602 CI lane runs under
+  `xvfb-run`. See `docs/spikes/2026-07-18-libs-gui-headless-render.md` (0b
+  sections) and `docs/superpowers/specs/2026-07-19-libs-gui-nsview-geometry-audit-design.md`.
 - **Font-metric variance** across environments → exclude font-derived sizes from
   the Apple audit; the draw-op stream avoids pixel/font fragility for shapes.
 - **Fred's review capacity** is limited (he is flooded). Keep PRs small and
