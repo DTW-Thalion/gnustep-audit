@@ -357,3 +357,30 @@ now fully characterized bug in which rounding algorithm `resizeWithOldSuperviewS
 should be using, not fixed by `f10135add`. Full case-by-case GNUstep-vs-AppKit
 table and the exact `Source/NSView.m:2104` characterization are in
 `autoresize-followup.md` (investigation scratch, not part of this repo).
+
+### supplementary 2026-07-19c: flipped-superview control
+
+The rounding-rule battery above never varied a flipped superview, leaving
+open whether AppKit's per-axis floor direction changes when the superview's
+`isFlipped` is `YES`. Added one probe to `probes/nsview-geometry.m`,
+identical fixture to `autoresize.round.y.minMargin_tie150` except `sup` is a
+`FlippedView` (`isFlipped` returns `YES`) instead of a plain `NSView`.
+Commit `4e8be5c` ("add flipped-superview autoresize rounding probe"), pushed
+to `master` on top of `dba3fb8`. Workflow run
+[29697236563](https://github.com/DTW-Thalion/gnustep-oracle/actions/runs/29697236563)
+(push-triggered, macOS runner), completed successfully, 0 `ERROR:` lines.
+
+| probe id | sub (pos,size) | sup old→new (y) | AppKit value |
+|---|---|---|---|
+| autoresize.round.y.minMargin_tie150_flippedSuper | 10,30 | 100→150 | `{{10, 22}, {30, 68}}` |
+
+Identical to the non-flipped `autoresize.round.y.minMargin_tie150` result
+(`{{10, 22}, {30, 68}}`). AppKit's per-axis floor-both-edges autoresize
+rounding is flip-invariant for this mask/fraction combination — it does not
+switch to ceiling (or any other direction) when the superview is flipped.
+This is consistent with GNUstep's existing flip-conditional margin swap at
+`Source/NSView.m:2088-2094` (which remaps which of `NSViewMinYMargin`/
+`NSViewMaxYMargin` is treated as the flexible one before the continuous
+proportional-split math runs) fully absorbing the flip semantics upstream of
+the rounding step, so the rounding step itself can stay a plain,
+unconditional `floor()` on both edges regardless of flip state.
