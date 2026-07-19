@@ -188,3 +188,14 @@ assertions for those pass and are in `convert.m`). Routed to Task 8.
 | convertRect.windowless.fromView.outer_to_inner | `{{-40, -20}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:fromView:]` |
 | convertRect.flipped.toView.inner_to_outer | `{{60, 100}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:toView:]` |
 | convertRect.flipped.toView.outer_to_inner | `{{-40, 100}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:toView:]` |
+
+Confirmed by running `Tests/gui/NSView/frameBounds.m` on the same tree.
+`-[NSView centerScanRect:]` returns the width and height transposed relative
+to AppKit for a non-square input rect. `-[NSView backingAlignedRect:options:]`
+is not implemented at all: not declared in `Headers/AppKit/NSView.h`, not
+defined anywhere in `Source/`.
+
+| probe id | macOS value | GNUstep value | source method |
+|---|---|---|---|
+| frameBounds.centerScanRect | `{{10, 11}, {20, 21}}` | `{{10, 11}, {21, 20}}` | `-[NSView centerScanRect:]` |
+| frameBounds.backingAlignedRect | `{{10, 11}, {21, 20}}` | method not implemented | `-[NSView backingAlignedRect:options:]` |
