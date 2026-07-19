@@ -1,40 +1,39 @@
-# Spike: libs-gui headless render (Phase 0a)
 
-Gating question: can GNUstep render offscreen and capture drawing operations
-in a display-less (CI) environment? This document records the verbatim marker
-output of throwaway probes run under three environments (has-display,
-display-unset, Xvfb). Negative results are recorded as-is.
+## 0b: CI lane result (Xvfb required)
 
-## Environment
+Branch `ci/headless-gui-tests` on DTW-Thalion/libs-gui adds a `linux-headless`
+job to `.github/workflows/main.yml`: it mirrors the clang gnustep-2.0 leg,
+installs the X11 development libraries plus `xvfb`, builds and installs
+gnustep/libs-back with `--enable-graphics=cairo`, and runs the suite with
+`xvfb-run -a make check`.
 
-Captured 2026-07-18 on the WSL Ubuntu box.
+Two facts settled by running it on a real GitHub runner (runs 29686801533,
+29687086700, 29688745608):
 
-- GNUstep base: `libgnustep-base.so.1.31.1` (1.31)
-- GNUstep gui: `libgnustep-gui.so.0.32.0` (0.32)
-- Backend bundle: `libgnustep-back-032.bundle`. The default `.bundle` binary is
-  byte-identical (sha1 `50bfd2f6…`) to the `.cairo` variant, so the active
-  backend is **cairo**. Also present but not default: `.xlib` (sha1 `1d3845bc…`)
-  and `.art` (sha1 `5a09b497…`).
-- Default back bundle links: `libcairo.so.2`, `libwayland-client/egl/cursor`,
-  `libX11.so.6`, `libxcb*`. So it can drive either Wayland or X11.
-- Runtime: libobjc2 `libobjc.so.4.6`, `-fobjc-runtime=gnustep-2.2`.
-- Compiler: Ubuntu clang 18.1.3.
-- Display: `DISPLAY=:0` and `WAYLAND_DISPLAY=wayland-0` are always present
-  (WSLg). Display-less is simulated with `env -u DISPLAY -u WAYLAND_DISPLAY`.
-  This is an approximation; a truly display-less GitHub Actions ubuntu job is
-  the authoritative headless gate (optional confirmation, Task 6).
-- Xvfb: present at `/usr/bin/Xvfb` (started as `:99`, `1024x768x24`).
-- gui link flags (`gnustep-config --gui-libs`):
-  `-pthread -fexceptions -rdynamic -fobjc-runtime=gnustep-2.2 -fblocks -L…/Libraries -L/usr/local/lib -lgnustep-gui -lgnustep-base -lpthread -lobjc -lm`
+1. libs-back builds an x11 server layer even for the cairo graphics backend, so
+   `libxt-dev libxmu-dev libxft-dev libxrandr-dev libxfixes-dev libxcursor-dev`
+   are required or `./configure` fails with "libXt not found - required for
+   building x11 server".
+2. A display is required. With no display the suite runs but every set that
+   reaches the window server aborts with `NSWindowServerCommunicationException:
+   Unable to retrieve list of screens from window server` (13 sets in the pure
+   no-display run, including the NSView convertRect/frame_bounds/frame_rotation/
+   bounds_scale/autoresize/scrollRectToVisible group). The earlier local finding
+   that these ran with `DISPLAY`/`WAYLAND_DISPLAY` unset was a WSLg artifact:
+   WSLg keeps a reachable display even with those variables unset. Under
+   `xvfb-run` all 13 run and pass.
 
-Compile recipe used for every probe (LD path before `-lobjc` so it resolves to
-libobjc2, not gcc's shadow):
+Result under xvfb (run 29688745608): 2481 passed, 0 skipped. Four pre-existing
+failures remain, unrelated to the backend or display and previously hidden
+because CI skipped every backend test:
 
-```
-. /usr/local/share/GNUstep/Makefiles/GNUstep.sh
-clang <probe>.m -o <probe> -L/usr/local/lib $(gnustep-config --objc-flags) $(gnustep-config --gui-libs) -lobjc
-```
+- NSDataLink/basic.m: `nil data passed to initForReadingWithData:`
+- NSSavePanel/basic.m:40: default allowedTypes is nil
+- NSFormCell/title.m: aborts before completing
+- NSTextFieldCell/attributes.m: aborts before completing
 
+The job is red only on those four. They are candidates for the audit fix
+backlog, tracked separately from the CI-lane change.
 Probes run with `export LD_LIBRARY_PATH=/usr/local/lib`.
 
 ## Probe A — offscreen bitmap render
