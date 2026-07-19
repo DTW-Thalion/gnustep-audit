@@ -38,6 +38,27 @@ not, by itself, reach these classes.
   job on the core classes; the monitoring UI benefits as a side effect and must
   not narrow the scope.
 
+## Contribution discipline (binds every phase and every implementer)
+
+Any artifact that reaches an upstream GNUstep repository — test or source code,
+code comments, commit messages, PR titles and bodies, issue text — must:
+
+- carry no AI/Claude attribution in any form: no `Co-Authored-By`, no robot
+  emoji, no "Generated with"; commits authored as
+  `Todd White <todd.white@thalion.global>` with no trailers;
+- read as Todd White's own writing: factual and terse, no LLM style tells (no
+  bold section headers, pervasive bullet lists, rule-of-three, em-dash drama,
+  signposting, or closing offers);
+- contain no internal tracking identifiers (RB-, TS-, PF-, BUG-) and none of our
+  private process vocabulary ("coverage-as-audit", "oracle", "the campaign");
+- add no change-describing comments in source; a fix site gets a short hazard
+  note and a pointer to its test, nothing more.
+
+Draft any substantive upstream prose for review before posting. These planning
+documents are internal and may stay structured; nothing from them ships upstream
+unfiltered. This section is copied verbatim into the Global Constraints of every
+plan derived from this spec.
+
 ## Testable-surface model — three tiers per class
 
 A "heavy" class is not uniformly untestable. Its API splits into surfaces with

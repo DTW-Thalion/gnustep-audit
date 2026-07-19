@@ -19,6 +19,7 @@
 - **ObjC exceptions:** use `NS_DURING`/`NS_HANDLER`, never `@try`/`@catch` (Win32 rule, kept for consistency).
 - **Spike code is throwaway:** lives in `~/gnustep-reaudit/.spike-headless-gui/` (untracked, WSL-side). Only the **findings document** is committed, to `docs/spikes/2026-07-18-libs-gui-headless-render.md` in the `gnustep-audit` repo, authored as `Todd White <todd.white@thalion.global>`, no AI attribution.
 - **No pixel-checksums for text** (freetype/cairo version variance). Determinism checks use solid-colour fills only.
+- **Contribution discipline:** the spec's "Contribution discipline" section binds here — no AI/Claude attribution anywhere, commits authored as `Todd White <todd.white@thalion.global>` with no trailers, no LLM style tells, no internal tracking IDs. The spike commits only the findings doc, but this same discipline is copied verbatim into the Global Constraints of the harness and class-suite plans that follow, where upstream artifacts are produced.
 
 ---
 
