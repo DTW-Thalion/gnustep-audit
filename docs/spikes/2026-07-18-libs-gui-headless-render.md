@@ -76,7 +76,53 @@ per the plan's determinism rule; here the content is a solid fill.)
 
 ## Probe B — draw-op stream via `dataWithEPSInsideRect:`
 
-_(pending)_
+Source: `~/gnustep-reaudit/.spike-headless-gui/probeB_eps.m`. A `Box : NSView`
+with a red-fill `drawRect:`; `main` calls `[v dataWithEPSInsideRect:[v bounds]]`
+and writes the returned NSData to a file, printing `EPS_OK len=…`.
+
+Compiled: **YES**, exit 0, no warnings/errors. Binary 53288 bytes. The selector
+`dataWithEPSInsideRect:` **exists** in gui 0.32 (declared in `NSView.h`,
+implemented `NSView.m:4023`).
+
+Run command (display-unset, two runs for stability):
+```
+cd ~/gnustep-reaudit/.spike-headless-gui; export LD_LIBRARY_PATH=/usr/local/lib
+env -u DISPLAY -u WAYLAND_DISPLAY ./probeB ~/probeB1.eps
+env -u DISPLAY -u WAYLAND_DISPLAY ./probeB ~/probeB2.eps
+```
+
+Verbatim result — **NO marker was ever printed in any environment.** The call
+`dataWithEPSInsideRect:` does not return control to our code. Observed:
+
+| Environment | Behaviour |
+|---|---|
+| display-unset (`env -u DISPLAY -u WAYLAND_DISPLAY`) | **HANGS.** Prints `Creating a default printer since no printer has been set in the user defaults (under the GSLPRPrinters key).` then spins at **100% CPU indefinitely**. Process state `R+`, CPU TIME `02:46` at ELAPSED 166s (fully CPU-bound). Never returns; killed with `kill -9`. No `EPS_OK`/`EPS_FAIL`, no `.eps` file. |
+| has-display (`DISPLAY=:0`, wayland) | Exits `rc=0` silently. No stdout, no stderr, no `.eps` file. Instrumented build reaches stage `before dataWithEPSInsideRect` then the process terminates (exit 0) without ever reaching the `after dataWithEPSInsideRect` stage. |
+| Xvfb (`DISPLAY=:99`, timeout 45) | Same as has-display: `rc=0`, no stdout, no stderr, no `.eps` file. |
+
+Stability verdict: **N/A / not reached** — no EPS output was produced under any
+environment, so the two display-unset runs could not be diffed. `STABLE` cannot
+be asserted; `DIFFERS` does not apply either. Draw-ops-present grep: N/A (no
+file).
+
+Root cause (from source, not a substituted API): `dataWithEPSInsideRect:`
+(`NSView.m:4023`) delegates to
+`[[NSPrintOperation EPSOperationWithView:insideRect:toData:] runOperation]`,
+i.e. the whole GSPrinting print-operation pipeline. In this build that
+`runOperation` never returns to the caller: display-unset it busy-spins; with a
+display present the process exits 0 from inside the call without producing data.
+So the EPS draw-op-stream mechanism is **NOT usable** for headless op capture in
+gui 0.32 as installed. Per the spike rule, no alternative API was substituted;
+the failure is recorded as-is.
+
+**Exploratory note (labelled deviation, not part of the probe):** the exit-0
+with a display, versus a busy-spin without one, points at `NSPrintOperation
+runOperation` / the GSPrinting bundle as the failing component rather than
+`NSView` itself. `dataWithPDFInsideRect:` (`NSView.m:4049`) uses the identical
+`runOperation` pattern and would be expected to fail the same way; it was not
+probed. This changes the Tier C mechanism away from the EPS op-stream toward the
+bitmap path (Probe A, which DID work headless) or a lower-level
+GSStreamContext/DPS approach that bypasses `NSPrintOperation`.
 
 ## Probe C — window + event injection under Xvfb
 
