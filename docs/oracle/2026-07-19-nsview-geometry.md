@@ -293,3 +293,67 @@ from x, or whether this is fixture-specific).
 | rotation.setFrameRotation.360.frameRotation | `-0.000000` | `360.000000` | `-[NSView setFrameRotation:]` / `-[NSView frameRotation]` |
 | autoresize.mask.heightSizable_minYMargin | `{{10, 22}, {30, 68}}` | `{{10, 23}, {30, 67}}` | `-[NSView resizeSubviewsWithOldSize:]` |
 | autoresize.mask.heightSizable_maxYMargin | `{{10, 10}, {30, 46}}` | `{{10, 10}, {30, 47}}` | `-[NSView resizeSubviewsWithOldSize:]` |
+
+## autoresize rounding-rule battery (supplementary 2026-07-19b)
+
+Follow-up to the `heightSizable_minYMargin`/`heightSizable_maxYMargin`
+divergence above. Extended `probes/nsview-geometry.m` with a 12-probe battery
+isolating the exact pixel-snap rounding rule `resizeSubviewsWithOldSize:`
+applies to a fractional proportional-split result, with an x-axis mirror
+(identical numbers, only the other sup dimension changed) for every y-axis
+case as an axis-symmetry control. Workflow run
+[29696748453](https://github.com/DTW-Thalion/gnustep-oracle/actions/runs/29696748453),
+commit `dba3fb8`.
+
+`sup` starts `(0,0,100,100)` with `setAutoresizesSubviews:YES` unless noted;
+only the resized axis's sup dimension changes per probe (the other stays
+100, so there is zero cross-axis coupling).
+
+| probe id | sub (pos,size) | sup old→new (resized axis) | AppKit value |
+|---|---|---|---|
+| autoresize.round.y.minMargin_tie150 | 10,30 | 100→150 | `{{10, 22}, {30, 68}}` |
+| autoresize.round.x.minMargin_tie150 | 10,30 | 100→150 | `{{22, 10}, {68, 30}}` |
+| autoresize.round.y.maxMargin_frac150 | 10,30 | 100→150 | `{{10, 10}, {30, 46}}` |
+| autoresize.round.x.maxMargin_frac150 | 10,30 | 100→150 | `{{10, 10}, {46, 30}}` |
+| autoresize.round.y.minMargin_tie_oddfloor | 10,30 | 100→154 | `{{10, 23}, {30, 71}}` |
+| autoresize.round.x.minMargin_tie_oddfloor | 10,30 | 100→154 | `{{23, 10}, {71, 30}}` |
+| autoresize.round.y.allYMargins_frac | 15,25 | 100→137 | `{{15, 20}, {25, 34}}` |
+| autoresize.round.x.allXMargins_frac | 15,25 | 100→137 | `{{20, 15}, {34, 25}}` |
+| autoresize.round.y.maxMargin_frac_shrink | 10,30 | 100→75 | `{{10, 10}, {30, 21}}` |
+| autoresize.round.x.maxMargin_frac_shrink | 10,30 | 100→75 | `{{10, 10}, {21, 30}}` |
+| autoresize.round.y.minMargin_frac_shrink | 10,30 | 100→75 | `{{10, 3}, {30, 12}}` |
+| autoresize.round.x.minMargin_frac_shrink | 10,30 | 100→75 | `{{3, 10}, {12, 30}}` |
+
+Every x-axis probe is an exact coordinate-swapped transpose of its y-axis
+counterpart: AppKit's autoresize rounding is axis-symmetric, not
+y/flip-specific. Derived rule, confirmed with zero free parameters against
+all 12 probes above plus the two originally-recorded divergent values: for
+each axis independently, compute the min edge and max edge of the resized
+subview frame via the standard continuous proportional springs/struts split
+(unchanged from GNUstep's own `autoresize()` model — the continuous math
+matches in every probed case), then **floor each edge independently
+(unconditional floor, not round-to-nearest, not round-half-up, not
+round-half-to-even)**, and derive size as `floor(maxEdge) - floor(minEdge)`.
+The clearest single witness is `minMargin_frac_shrink`: raw min edge `3.75`,
+raw max edge `15` (exact) — AppKit floors the min edge *down* to `3` (not up
+to `4`, ruling out round-half-up/nearest) and derives size as `15-3=12` (not
+`floor(11.25)=11`, ruling out independently flooring the size). This is a
+different algorithm from `-centerScanRect:`'s own (round-half-up origin +
+symmetric remainder-split size, confirmed separately by
+`frameBounds.centerScanRect` above) — GNUstep's reuse of `centerScanRect:`
+for autoresize pixel-snapping (`Source/NSView.m:2104`) is therefore the wrong
+algorithm on its own terms, independent of the width/height transpose bug
+fixed on `fix/nsview-centerscanrect` (`f10135add`).
+
+Re-run against GNUstep with `f10135add` applied (`~/gnustep-reaudit/libs-gui`,
+branch `fix/nsview-centerscanrect`, built clean, throwaway probe, WSLg
+display, cairo backend): all 12 cases plus both original divergent cases
+still diverge from AppKit by exactly ±1 point on whichever component the two
+algorithms' rounding disagrees on (origin when the min edge has fraction ≥
+0.5, size when only the far edge is fractional, both in opposite directions
+when the far edge is exact and the min edge isn't). The width/height
+transpose fix is necessary but not sufficient; the residual is a distinct,
+now fully characterized bug in which rounding algorithm `resizeWithOldSuperviewSize:`
+should be using, not fixed by `f10135add`. Full case-by-case GNUstep-vs-AppKit
+table and the exact `Source/NSView.m:2104` characterization are in
+`autoresize-followup.md` (investigation scratch, not part of this repo).
