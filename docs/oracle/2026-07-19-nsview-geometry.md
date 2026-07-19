@@ -5,6 +5,14 @@ Source: `DTW-Thalion/gnustep-oracle`, `probes/nsview-geometry.m`, workflow run
 (macOS runner, `clang -framework Cocoa -fobjc-arc`). Values below are verbatim
 from the runner's `probe-output.txt`; none have been edited or "corrected".
 
+Supplementary run 2026-07-19 (same probe file, extended): workflow run
+[29693666249](https://github.com/DTW-Thalion/gnustep-oracle/actions/runs/29693666249),
+commit `f31af94`. Closes gaps in the `## rotation` and `## autoresize` tables
+that Tasks 4/5 could not carry (values not yet AppKit-verified at the time).
+The `visibleRect.windowed.*` on-screen (genuinely displayed window) gap is
+explicitly not probed here — the runner cannot order a window front / make
+it key, so that case remains an open limitation, documented above.
+
 All fixed inputs: `outer` frame `(0,0,200,200)`, `inner` frame `(50,30,100,100)`
 as a subview of `outer`, unless noted otherwise per probe. 78 probes captured,
 0 `ERROR:` lines.
@@ -114,6 +122,29 @@ that probe's *input* was 10 with no further `rotateByAngle:` applied in that
 line — see the probe source for the exact sequence before treating this as a
 no-op finding.)
 
+### supplementary 2026-07-19: frameRotation normalization / wraparound
+
+`setFrameRotation:` with a fresh windowless view, reading `frameRotation`
+back immediately after.
+
+| probe id | AppKit value |
+|---|---|
+| rotation.setFrameRotation.neg45.frameRotation (setFrameRotation:-45) | `-45.000000` |
+| rotation.setFrameRotation.90.frameRotation (setFrameRotation:90) | `90.000000` |
+| rotation.setFrameRotation.180.frameRotation (setFrameRotation:180) | `180.000000` |
+| rotation.setFrameRotation.360.frameRotation (setFrameRotation:360) | `-0.000000` |
+| rotation.setFrameRotation.405.frameRotation (setFrameRotation:405) | `45.000000` |
+
+AppKit does **not** normalize `frameRotation` into `[0, 360)`. The pattern
+across these five values is an equivalent angle in `(-180, 180]`: `-45` stays
+`-45` (not `315`), `90` and `180` stay as given, a full turn (`360`) wraps to
+`~0` (printed as `-0.000000`, a sign-of-zero artifact of the underlying
+sin/cos recomputation, not a distinct value from `0`), and `405` (`360+45`)
+wraps to its `45` equivalent. This confirms `frameRotation` is not stored
+verbatim but recomputed from a rotation transform (matrix decomposition via
+atan2, whose range is `(-180, 180]`), which is why `360` does not read back
+as `360` the way `-45`/`90`/`180` read back unchanged.
+
 ## autoresize
 
 Windowless. Superview `sup` starts at `(0,0,100,100)` with
@@ -134,6 +165,19 @@ probe.
 | autoresize.mask.centerXY (all four margins) | `{{24, 17}, {30, 30}}` |
 | autoresize.mask.all (width\|height\|all margins) | `{{20, 15}, {60, 45}}` |
 | autoresize.rounding.fractional_grow (sub (10,10,33,33), width+height sizable, sup resized to (151,151)) | `{{10, 10}, {84, 84}}` |
+
+### supplementary 2026-07-19: sizable + opposite-margin combos, zero-size subview
+
+Same fixture (`sup` (0,0,100,100), `sub` (10,10,30,30) unless noted,
+`[sup setFrameSize:(200,150)]`).
+
+| probe id | AppKit value |
+|---|---|
+| autoresize.mask.widthSizable_minXMargin | `{{35, 10}, {105, 30}}` |
+| autoresize.mask.widthSizable_maxXMargin | `{{10, 10}, {63, 30}}` |
+| autoresize.mask.heightSizable_minYMargin | `{{10, 22}, {30, 68}}` |
+| autoresize.mask.heightSizable_maxYMargin | `{{10, 10}, {30, 46}}` |
+| autoresize.zeroSize.widthHeightSizable (sub (10,10,0,0), width+height sizable) | `{{10, 10}, {100, 50}}` |
 
 ## visibleClip
 
@@ -229,3 +273,23 @@ provisional (a window created and never ordered front, not resolved against
 a genuinely on-screen window), so this is left as an open gap rather than a
 confirmed divergence. Needs an on-screen-window oracle run to settle either
 side.
+
+Confirmed 2026-07-19 by adding the supplementary probes above to
+`Tests/gui/NSView/rotation.m` and `Tests/gui/NSView/autoresize.m` on the WSL
+GNUstep tree (cairo backend, with a display) and observing the failures
+directly; each GNUstep value below was read back with a standalone scratch
+probe against the same tree, then removed from the suites. `-[NSView
+setFrameRotation:]` normalizes into `[0, 360)` in GNUstep instead of AppKit's
+`(-180, 180]` equivalent-angle range. `-[NSView
+resizeSubviewsWithOldSize:]`'s proportional split for a sizable dimension
+paired with only one of its two margins is off by one point from AppKit on
+the y-axis margin combos (x-axis combos for the same masks matched exactly;
+not investigated further whether the y-axis-specific rounding path differs
+from x, or whether this is fixture-specific).
+
+| probe id | macOS value | GNUstep value | source method |
+|---|---|---|---|
+| rotation.setFrameRotation.neg45.frameRotation | `-45.000000` | `315.000000` | `-[NSView setFrameRotation:]` / `-[NSView frameRotation]` |
+| rotation.setFrameRotation.360.frameRotation | `-0.000000` | `360.000000` | `-[NSView setFrameRotation:]` / `-[NSView frameRotation]` |
+| autoresize.mask.heightSizable_minYMargin | `{{10, 22}, {30, 68}}` | `{{10, 23}, {30, 67}}` | `-[NSView resizeSubviewsWithOldSize:]` |
+| autoresize.mask.heightSizable_maxYMargin | `{{10, 10}, {30, 46}}` | `{{10, 10}, {30, 47}}` | `-[NSView resizeSubviewsWithOldSize:]` |
