@@ -193,3 +193,107 @@ Xvfb: demoted from "required for Tier B" to a contingency lane — for full
 event-loop dispatch, and as a fallback if a truly display-less CI runner behaves
 differently from WSLg display-unset. The harness's first real CI run is the
 authoritative confirmation.
+
+## 0b: headless make check
+
+Captured 2026-07-19 on the same WSL Ubuntu box, `~/gnustep-reaudit/libs-gui`,
+branch `master` (left untouched, HEAD `db36c650f`, working tree clean, 108
+commits behind `origin/master`).
+
+### Step 1: single test
+
+The planned command was:
+
+```
+env -u DISPLAY -u WAYLAND_DISPLAY gnustep-tests Tests/gui/NSPathControl/editable.m
+```
+
+This does not run: `Tests/gui/NSPathControl/editable.m` does not exist at the
+checked-out commit. `git ls-tree HEAD Tests/gui/NSPathControl/` is empty; the
+directory on disk (`GNUmakefile`, `obj/pathitems*`) is untracked build residue
+from a prior session, not part of this commit's tree. `editable.m` exists on
+`origin/master` (added in `237f4fdd0`, "Fix: NSPathControl -isEditable
+/-setEditable:"), 108 commits ahead of the checked-out HEAD. Did not pull to
+fetch it — that would move the baseline commit out from under an otherwise
+unrelated task, and the question Step 1 exists to answer doesn't need that
+specific file.
+
+Substituted an existing tracked test that also exercises `sharedApplication`
+(the same SKIP-guard path): `Tests/gui/NSApplication/basic.m` fails to build
+independent of the backend question (`error: use of undeclared identifier
+'NSProcessInfo'`, missing `#import <Foundation/NSProcessInfo.h>`). Fell back to
+`Tests/gui/NSButtonCell/stateValue.m`:
+
+```
+cd ~/gnustep-reaudit/libs-gui
+. /usr/local/share/GNUstep/Makefiles/GNUstep.sh
+export LD_LIBRARY_PATH=/usr/local/lib
+env -u DISPLAY -u WAYLAND_DISPLAY gnustep-tests Tests/gui/NSButtonCell/stateValue.m
+```
+
+Result: `14 Passed tests`, `All OK!`. No `Skipped`. Confirms the cairo backend
+initialises `sharedApplication` with no `DISPLAY`/`WAYLAND_DISPLAY` set, so the
+SKIP guard in gui view tests stays inert and the tests actually run.
+
+### Step 2: whole gui `make check`
+
+Ran verbatim:
+
+```
+cd ~/gnustep-reaudit/libs-gui/Tests
+. /usr/local/share/GNUstep/Makefiles/GNUstep.sh
+export LD_LIBRARY_PATH=/home/toddw/gnustep-reaudit/libs-gui/Source/obj:/usr/local/lib ADDITIONAL_LDFLAGS=-L/usr/local/lib
+env -u DISPLAY -u WAYLAND_DISPLAY gnustep-tests gui
+```
+
+No rebuild was needed; `Source/obj` from the prior session loaded fine.
+
+Final summary block:
+
+```
+   2000 Passed tests
+     15 Failed tests
+      4 Failed builds
+      2 Failed files
+      2 Dashed hopes
+      1 Failed set
+```
+
+`Skipped` occurs zero times anywhere in the full run output (`grep -ic skipped`
+on the captured log returns `0`). So of the tests that build and run, none are
+being SKIP-guarded out headless: the 2000 passes are real runs, not
+vacuously-skipped sets. Exit code of `gnustep-tests gui` itself is 0 despite the
+failures (the tool reports failures in its summary text, not via exit status).
+
+Failures are pre-existing content/logic issues in this stale (108-behind)
+tree, unrelated to headless-vs-display:
+
+- 4 failed builds: `gui/GSCodingFlags/GSCellFlags.m` (`GSCodingFlags.h` file not
+  found), `gui/GSXib5KeyedUnarchiver/buttonCell.m` and `menu.m`
+  (`Additions/GNUstepGUI/GSXibKeyedUnarchiver.h` file not found),
+  `gui/NSApplication/basic.m` (undeclared `NSProcessInfo`, missing import).
+- 2 failed files (aborted mid-run): `gui/NSFormCell/title.m`,
+  `gui/NSTextFieldCell/attributes.m`.
+- 15 failed tests across `gui/NSDatePickerCell/{clamping,defaultColors,
+  defaultDateValue,defaultElements}.m` and `gui/NSLevelIndicatorCell/{initStyle,
+  levelIndicatorStyle,tickMarkValue}.m` — cell-default/clamping assertions, not
+  backend-related.
+- 1 failed set: `gui/NSDataLink/basic.m`.
+- 2 "Dashed hopes" tied to the aborted files above.
+
+### Recipe (for Task 2 CI encoding)
+
+```
+. /usr/local/share/GNUstep/Makefiles/GNUstep.sh
+export LD_LIBRARY_PATH=<repo>/Source/obj:/usr/local/lib
+export ADDITIONAL_LDFLAGS=-L/usr/local/lib
+env -u DISPLAY -u WAYLAND_DISPLAY gnustep-tests gui
+```
+
+No `Xvfb` in this recipe. The default installed backend (cairo bundle) needs
+neither `DISPLAY` nor `WAYLAND_DISPLAY` for `gnustep-tests gui` to build and run
+the suite for real (0 skips). Baseline for Task 2's CI job: expect on the order
+of 2000 passed / 0 skipped on a fresh, up-to-date checkout; the 15
+failed/4 failed-build/2 failed-file counts recorded here are artifacts of this
+tree being 108 commits behind origin master and should not recur once CI runs
+against current master.
