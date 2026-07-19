@@ -1,7 +1,7 @@
 # Spike: dtable Field Cache-Line Move Adjacent to isa (libobjc2)
 
 **Date:** 2026-04-13
-**Author:** Claude subagent (Opus 4.6)
+**Author:** Todd White
 **Status:** DRAFT - pending review
 **Target repo:** libobjc2 (DTW-Thalion fork, `gnustep-audit/libobjc2/` subfolder, branch `master`)
 **Depends on:** B1 `docs/spikes/2026-04-13-per-class-cache-version.md` (opaque struct, asmconstants, SOVERSION), B2 `docs/spikes/2026-04-13-tagged-pointer-nsstring.md` (small-object asm branch ordering)

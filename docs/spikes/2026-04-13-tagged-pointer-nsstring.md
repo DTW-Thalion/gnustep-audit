@@ -1,7 +1,7 @@
 # Spike: Tagged-Pointer / Small-String NSString (libs-base)
 
 **Date:** 2026-04-13
-**Author:** Claude subagent (Opus 4.6)
+**Author:** Todd White
 **Status:** DRAFT - pending review
 **Target repos:** libs-base (primary), libobjc2 (small-obj infra)
 **Depends on:** `docs/spikes/2026-04-13-per-class-cache-version.md` (B1)

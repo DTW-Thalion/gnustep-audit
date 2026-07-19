@@ -1,7 +1,7 @@
 # Spike: Autorelease Pool Page Recycling (libobjc2)
 
 **Date:** 2026-04-13
-**Author:** Claude subagent (Opus 4.6)
+**Author:** Todd White
 **Status:** DRAFT - pending review
 **Target repo:** libobjc2
 

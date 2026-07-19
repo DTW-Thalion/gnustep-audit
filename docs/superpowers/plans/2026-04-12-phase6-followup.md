@@ -297,9 +297,7 @@ Add _cachedLimitDate to GSRunLoopCtxt; return cached value when still
 in the future, invalidate on any timer mutation (add/remove/invalidate).
 Closes Task 9 from docs/superpowers/plans/2026-04-12-perf-optimization.md,
 which was deferred at audit close and carried forward by
-docs/superpowers/plans/2026-04-12-phase6-followup.md.
-
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+docs/superpowers/plans/2026-04-12-phase6-followup.md."
 git push myfork master   # or origin — check git remote -v in that repo
 
 cd /c/Users/toddw/source/repos/gnustep-audit
@@ -497,9 +495,7 @@ git -c user.name="Todd White" -c user.email="todd.white@thalion.global" commit -
 
 Track _tombstoneCount alongside _count; when deleted-bucket pressure
 exceeds _capacity/4, rehash in place. Closes the follow-up PR noted
-in docs/superpowers/plans/2026-04-12-fix-libs-corebase.md:909.
-
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+in docs/superpowers/plans/2026-04-12-fix-libs-corebase.md:909."
 git push origin master  # verify remote name first
 
 cd /c/Users/toddw/source/repos/gnustep-audit
