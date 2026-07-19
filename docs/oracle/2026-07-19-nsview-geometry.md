@@ -171,6 +171,20 @@ window.
 
 ## Divergences
 
-(none recorded yet — this file only records the Task 1 sweep; Tasks 2-6
-append confirmed GNUstep divergences here as they run each suite against
-these values.)
+Confirmed by running `Tests/gui/NSView/convert.m` on the WSL GNUstep tree
+(cairo backend, with a display). `-[NSView convertRect:toView:]` and
+`-[NSView convertRect:fromView:]` return the input rect unchanged whenever
+the receiver's `_window` is nil, instead of applying the view-hierarchy
+transform the way `convertPoint:`/`convertSize:` do. Confirmed for both a
+plain windowless hierarchy and a windowless hierarchy through a flipped
+subview. `convertPoint:`/`convertSize:` are unaffected (windowless
+assertions for those pass and are in `convert.m`). Routed to Task 8.
+
+| probe id | macOS value | GNUstep value | source method |
+|---|---|---|---|
+| convertRect.windowless.toView.inner_to_outer | `{{60, 40}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:toView:]` |
+| convertRect.windowless.toView.outer_to_inner | `{{-40, -20}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:toView:]` |
+| convertRect.windowless.fromView.inner_to_outer | `{{60, 40}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:fromView:]` |
+| convertRect.windowless.fromView.outer_to_inner | `{{-40, -20}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:fromView:]` |
+| convertRect.flipped.toView.inner_to_outer | `{{60, 100}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:toView:]` |
+| convertRect.flipped.toView.outer_to_inner | `{{-40, 100}, {20, 20}}` | `{{10, 10}, {20, 20}}` | `-[NSView convertRect:toView:]` |
